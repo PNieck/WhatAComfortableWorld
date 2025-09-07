@@ -1,0 +1,11 @@
+models/
+
+# Datasets
+data/
+
+# Python artifacts
+__pycache__/
+
+
+# IDE's artifacts
+.vscode/
