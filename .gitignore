@@ -1,11 +1,12 @@
 models/
 
 # Datasets
-data/
+data/*
+# Single exception
+!data/invalid_floor_plans.txt
 
 # Python artifacts
 __pycache__/
 
-
-# IDE's artifacts
+# Code editors artifacts
 .vscode/
