@@ -1,0 +1,7 @@
+paths:
+  input_data: "./data/input"
+  output_data: "./data/output"
+
+preprocessing:
+  test_size: 0.05
+  validate_size: 0.05
