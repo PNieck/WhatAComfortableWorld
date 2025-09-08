@@ -1,7 +1,24 @@
+general:
+  seed: 42
+
 paths:
   input_data: "./data/input"
   output_data: "./data/output"
+  trained_model: "./models/"
 
 preprocessing:
   test_size: 0.05
-  validate_size: 0.05
+  validate_size: 0.005
+
+model:
+  model_name: "main_model"
+  max_seq_len: 320
+  n_layer: 12
+  n_head: 8
+  n_embd: 256
+
+training:
+  epochs: 150
+  lr: 0.0001
+  batch_size: 32
+
