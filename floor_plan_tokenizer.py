@@ -67,7 +67,7 @@ class FloorPlanTokenizer(PreTrainedTokenizer):
 
 
     def build_inputs_with_special_tokens(self, token_ids, _):
-        """Wrap input in <s> ... </s> tokens."""
+        """Wrap input in start and end sequence tokens."""
         return [tokens.START_SEQ_TOKEN_ID] + token_ids + [tokens.END_SEQ_TOKEN_ID]
 
 
