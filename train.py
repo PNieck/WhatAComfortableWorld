@@ -1,13 +1,11 @@
 from __future__ import annotations
 import argparse
-from pathlib import Path
 import yaml
 try:
     from yaml import CLoader as Loader
 except ImportError:
     from yaml import Loader
 
-import torch
 from datasets import load_dataset
 from transformers import (
     PreTrainedTokenizer,
