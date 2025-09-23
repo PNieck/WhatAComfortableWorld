@@ -26,7 +26,6 @@ def room_token_id(room_label: int):
 def room_token(room_label: int) -> str:
     return f"<Room {room_label}>"
 
-
 def coord_token_id(coord: int):
     return coord + ROOMS_CNT + CONT_TOKENS_CNT
 
