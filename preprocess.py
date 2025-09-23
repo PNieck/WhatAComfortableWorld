@@ -31,6 +31,9 @@ def load_invalid() -> set:
     # Remove all white spaces from the end 
     invalid_plans = [line.rstrip() for line in invalid_plans]
 
+    # Remove comments and empty strings 
+    invalid_plans = [plan for plan in invalid_plans if plan != "" and not plan.startswith("#")]
+
     return set(invalid_plans)
 
 
