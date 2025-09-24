@@ -48,6 +48,14 @@ class FrontDoor:
         return self.corners[1, 1]
     
     @property
+    def xs(self):
+        return self.corners[:, 0]
+    
+    @property
+    def ys(self):
+        return self.corners[:, 1]
+    
+    @property
     def corner1(self):
         return self.corners[0]
     
@@ -55,17 +63,30 @@ class FrontDoor:
     def corner2(self):
         return self.corners[1]
 
-    def __init__(self, x1: int, y1: int, x2: int, y2: int):
-        self.corners = np.array([[x1, y1], [x2, y2]], np.int32)
+    def __init__(self, corners: np.ndarray):
+        assert corners.shape == (2, 2), "Invalid array dimensions"
+        self.corners = corners        
+
+    @classmethod
+    def from_xy(cls, x1: int, y1: int, x2: int, y2: int):
+        return cls(np.array([[x1, y1], [x2, y2]], np.uint8))
+
+
 
 
 class FloorPlan:
+    MAX_COORDINATE = 255
+
     @property
     def boundary_len(self):
         return self.boundary.shape[0]
+    
+    @property
+    def rooms_cnt(self):
+        return len(self.rooms)
 
     def __init__(self, name: str, boundary, front_door: FrontDoor, rooms: List[Room]):
-        self.name = name
-        self.boundary = boundary
-        self.front_door = front_door
-        self.rooms = rooms
+        self.name: str = name
+        self.boundary: np.ndarray = boundary
+        self.front_door: FrontDoor = front_door
+        self.rooms: List[Room] = rooms
