@@ -48,6 +48,14 @@ class FrontDoor:
         return self.corners[1, 1]
     
     @property
+    def xs(self):
+        return self.corners[:, 0]
+    
+    @property
+    def ys(self):
+        return self.corners[:, 1]
+    
+    @property
     def corner1(self):
         return self.corners[0]
     
