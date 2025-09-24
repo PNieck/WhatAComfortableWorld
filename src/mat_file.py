@@ -21,7 +21,7 @@ def _boundary_len(floor_plan):
 def _boundary_from_mat(floor_plan):
     len = _boundary_len(floor_plan)
     
-    result = np.empty((len, 2), dtype=np.int32)
+    result = np.empty((len, 2), dtype=np.uint8)
 
     start = 2
     end = floor_plan.boundary.shape[0]
@@ -73,7 +73,7 @@ def _rooms_from_mat(floor_plan) -> List[Room]:
 def from_mat_file(floor_plan) -> FloorPlan:
     boundary = _boundary_from_mat(floor_plan)
     
-    door = FrontDoor(
+    door = FrontDoor.from_xy(
         floor_plan.boundary[0, 0],
         floor_plan.boundary[0, 1],
         floor_plan.boundary[1, 0],
