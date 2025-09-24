@@ -9,6 +9,13 @@ paths:
 preprocessing:
   test_size: 0.05
   validate_size: 0.005
+  data_augmentation:
+    - permutation:
+        percentage: 0.4
+    - symmetry:
+        percentage: 0.4
+    - rotation:
+        percentage: 0.4
 
 model:
   model_name: "main_model"
