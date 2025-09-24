@@ -5,7 +5,7 @@ from typing import List
 from src.floor_plan import FloorPlan, FrontDoor, Room, RoomType
 
 
-def boundary_len(floor_plan):
+def _boundary_len(floor_plan):
     boundary_len = floor_plan.boundary.shape[0] - 2
 
     # Checking if front door corners belongs to boundary
@@ -18,8 +18,8 @@ def boundary_len(floor_plan):
     return boundary_len
 
 
-def boundary_from_mat(floor_plan):
-    len = boundary_len(floor_plan)
+def _boundary_from_mat(floor_plan):
+    len = _boundary_len(floor_plan)
     
     result = np.empty((len, 2), dtype=np.int32)
 
@@ -50,7 +50,7 @@ def boundary_from_mat(floor_plan):
     return result
 
 
-def rooms_from_mat(floor_plan) -> List[Room]:
+def _rooms_from_mat(floor_plan) -> List[Room]:
     room_cnt = len(floor_plan.rBoundary)
     result = [None] * room_cnt
 
@@ -62,7 +62,7 @@ def rooms_from_mat(floor_plan) -> List[Room]:
         x = room[:, 0]
         y = room[:, 1]
 
-        room_boundary = np.array([x, y])
+        room_boundary = np.stack((x, y), axis=1)
         room_type = RoomType(floor_plan.rType[i])
 
         result[i] = Room(room_type, room_boundary)
@@ -71,7 +71,7 @@ def rooms_from_mat(floor_plan) -> List[Room]:
 
 
 def from_mat_file(floor_plan) -> FloorPlan:
-    boundary = boundary_from_mat(floor_plan)
+    boundary = _boundary_from_mat(floor_plan)
     
     door = FrontDoor(
         floor_plan.boundary[0, 0],
@@ -80,7 +80,7 @@ def from_mat_file(floor_plan) -> FloorPlan:
         floor_plan.boundary[1, 1]
     )
 
-    rooms = rooms_from_mat(floor_plan)
+    rooms = _rooms_from_mat(floor_plan)
 
     return FloorPlan(
         floor_plan.name,
