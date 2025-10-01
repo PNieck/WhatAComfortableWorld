@@ -7,10 +7,9 @@ except ImportError:
     from yaml import Loader
 
 from datasets import load_dataset
+import torch
 from transformers import (
     PreTrainedTokenizer,
-    GPT2Config,
-    GPT2LMHeadModel,
     DataCollatorForLanguageModeling,
     Trainer,
     TrainingArguments,
@@ -18,21 +17,7 @@ from transformers import (
 )
 
 import floor_plan_tokenizer
-
-
-def build_model(vocab_size: int, n_layer: int, n_head: int, n_embd: int, max_position: int) -> GPT2LMHeadModel:
-    config = GPT2Config(
-        vocab_size=vocab_size,
-        n_positions=max_position,
-        n_ctx=max_position,
-        n_layer=n_layer,
-        n_head=n_head,
-        n_embd=n_embd,
-        bos_token_id=0,  # will be set by tokenizer when resized
-        eos_token_id=1,
-    )
-    model = GPT2LMHeadModel(config)
-    return model
+from src.model import FloorPlanGenModel
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
@@ -80,19 +65,14 @@ def main():
     tokenizer = floor_plan_tokenizer.FloorPlanTokenizer()
 
     print("Initializing model from scratch…")
-    model = build_model(
-        vocab_size=len(tokenizer),
-        n_layer=model_config["n_layer"],
-        n_head=model_config["n_head"],
-        n_embd=model_config["n_embd"],
-        max_position=model_config["max_seq_len"],
-    )
-
-    # Tie tokenizer + model vocab sizes
-    model.resize_token_embeddings(len(tokenizer))
+    model = FloorPlanGenModel(len(tokenizer))    
 
     model_size = sum(t.numel() for t in model.parameters())
     print(f"Model size: {model_size/1000**2:.1f}M parameters")
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Using device: {device}')
+    model.to(device)
 
     # Load dataset
     print("Loading datasets")
