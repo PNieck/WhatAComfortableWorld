@@ -127,6 +127,7 @@ def main():
         lr_scheduler_type="cosine",
         gradient_accumulation_steps=1,
         report_to="none",
+        save_safetensors=False
     )
 
     trainer = Trainer(
