@@ -6,7 +6,7 @@ from transformers import AutoConfig, AutoModelForCausalLM
 class FloorPlanGenModel(nn.Module):
     
 
-    def __init__(self, config):
+    def __init__(self, config, tokens_cnt):
         super(FloorPlanGenModel, self).__init__()
 
         gemmaConfig = AutoConfig.from_pretrained("google/gemma-3-270m")
@@ -25,8 +25,7 @@ class FloorPlanGenModel(nn.Module):
 
         self.model = AutoModelForCausalLM.from_config(gemmaConfig, attn_implementation='eager')
 
-        if "max_seq_len" in config:
-            self.model.resize_token_embeddings(config["max_seq_len"])
+        self.model.resize_token_embeddings(tokens_cnt)
 
 
     def forward(

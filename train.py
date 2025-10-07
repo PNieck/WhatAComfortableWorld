@@ -65,7 +65,7 @@ def main():
     tokenizer = floor_plan_tokenizer.FloorPlanTokenizer()
 
     print("Initializing model from scratch…")
-    model = FloorPlanGenModel(model_config)
+    model = FloorPlanGenModel(model_config, len(tokenizer))
 
     model_size = sum(t.numel() for t in model.parameters())
     print(f"Model size: {model_size/1000**2:.1f}M parameters")
