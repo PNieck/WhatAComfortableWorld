@@ -143,7 +143,7 @@ def main():
     trainer.train()
 
     print("Saving model")
-    trainer.save_model(paths_config["trained_model"])
+    model.save(paths_config["trained_model"])
 
     print(f"\nAll done.")
 
