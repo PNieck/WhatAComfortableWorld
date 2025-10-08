@@ -13,3 +13,9 @@ __pycache__/
 
 # venv directory
 venv/
+
+# File with slurm job_id
+job_id
+
+# Log files
+*.log
