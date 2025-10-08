@@ -7,10 +7,9 @@ except ImportError:
     from yaml import Loader
 
 from datasets import load_dataset
+import torch
 from transformers import (
     PreTrainedTokenizer,
-    GPT2Config,
-    GPT2LMHeadModel,
     DataCollatorForLanguageModeling,
     Trainer,
     TrainingArguments,
@@ -18,21 +17,7 @@ from transformers import (
 )
 
 import floor_plan_tokenizer
-
-
-def build_model(vocab_size: int, n_layer: int, n_head: int, n_embd: int, max_position: int) -> GPT2LMHeadModel:
-    config = GPT2Config(
-        vocab_size=vocab_size,
-        n_positions=max_position,
-        n_ctx=max_position,
-        n_layer=n_layer,
-        n_head=n_head,
-        n_embd=n_embd,
-        bos_token_id=0,  # will be set by tokenizer when resized
-        eos_token_id=1,
-    )
-    model = GPT2LMHeadModel(config)
-    return model
+from src.model import FloorPlanGenModel
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
@@ -43,18 +28,6 @@ def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
         max_length=seq_len,
         return_tensors="pt"
     )
-
-
-def group_texts(examples, block_size: int):
-    # Concatenate then split into fixed-size blocks
-    concatenated = {k: sum(examples[k], []) for k in examples.keys()}
-    total_length = (len(concatenated["input_ids"]) // block_size) * block_size
-    result = {
-        k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
-        for k, t in concatenated.items()
-    }
-    result["labels"] = result["input_ids"].copy()
-    return result
 
 
 def main():
@@ -80,19 +53,14 @@ def main():
     tokenizer = floor_plan_tokenizer.FloorPlanTokenizer()
 
     print("Initializing model from scratch…")
-    model = build_model(
-        vocab_size=len(tokenizer),
-        n_layer=model_config["n_layer"],
-        n_head=model_config["n_head"],
-        n_embd=model_config["n_embd"],
-        max_position=model_config["max_seq_len"],
-    )
-
-    # Tie tokenizer + model vocab sizes
-    model.resize_token_embeddings(len(tokenizer))
+    model = FloorPlanGenModel(model_config, len(tokenizer))
 
     model_size = sum(t.numel() for t in model.parameters())
     print(f"Model size: {model_size/1000**2:.1f}M parameters")
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Using device: {device}')
+    model.to(device)
 
     # Load dataset
     print("Loading datasets")
@@ -120,17 +88,6 @@ def main():
         remove_columns=["text"],
     )
 
-    # Group into contiguous blocks for causal LM
-    grouped_train = train_tokenized.map(
-        lambda ex: group_texts(ex, model_config["max_seq_len"]),
-        batched=True,
-    )
-
-    grouped_test = test_tokenized.map(
-        lambda ex: group_texts(ex, model_config["max_seq_len"]),
-        batched=True,
-    )
-
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     training_args = TrainingArguments(
@@ -147,13 +104,14 @@ def main():
         lr_scheduler_type="cosine",
         gradient_accumulation_steps=1,
         report_to="none",
+        save_safetensors=False
     )
 
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=grouped_train["train"],
-        eval_dataset=grouped_test["train"],
+        train_dataset=train_tokenized["train"],
+        eval_dataset=test_tokenized["train"],
         processing_class=tokenizer,
         data_collator=data_collator,
     )
@@ -162,7 +120,7 @@ def main():
     trainer.train()
 
     print("Saving model")
-    trainer.save_model(paths_config["trained_model"])
+    model.save(paths_config["trained_model"])
 
     print(f"\nAll done.")
 

@@ -10,3 +10,12 @@ __pycache__/
 
 # Code editors artifacts
 .vscode/
+
+# venv directory
+venv/
+
+# File with slurm job_id
+job_id
+
+# Log files
+*.log

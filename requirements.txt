@@ -1,0 +1,9 @@
+--find-links https://download.pytorch.org/whl/torch_stable.html
+
+pytorch>=2.8+cu126
+numpy
+scipy
+transformers
+matplotlib
+datasets
+accelerate

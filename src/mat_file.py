@@ -55,12 +55,12 @@ def _rooms_from_mat(floor_plan) -> List[Room]:
     result = [None] * room_cnt
 
     for i, room in enumerate(floor_plan.rBoundary):
-        if room.size == 0:
-            print(floor_plan.name)
-            continue
-
-        x = room[:, 0]
-        y = room[:, 1]
+        if room.dtype == np.uint8:
+            x = room[:, 0]
+            y = room[:, 1]
+        else:
+            x = room[:, 0].astype(np.uint8)
+            y = room[:, 1].astype(np.uint8)
 
         room_boundary = np.stack((x, y), axis=1)
         room_type = RoomType(floor_plan.rType[i])

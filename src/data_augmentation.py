@@ -23,8 +23,13 @@ class SymmetryType(Enum):
     XY = 2
 
 
-def _coord_symmetry(coord):
-    return (FloorPlan.MAX_COORDINATE + 1) - coord
+def _coord_symmetry(coord: np.ndarray):
+    if coord.dtype == np.uint8:
+        coord = coord.astype(np.uint16)
+
+    result = (FloorPlan.MAX_COORDINATE + 1) - coord
+
+    return result.astype(np.uint8)
 
 
 def _arr_sym(arr: np.ndarray, type: SymmetryType):
@@ -75,6 +80,9 @@ class RotationAngle(Enum):
 
 def _arr_rot(arr: np.ndarray, angle: RotationAngle):
     result = np.empty_like(arr)
+
+    if arr.dtype == np.uint8:
+        arr = arr.astype(np.uint16)
 
     if angle == RotationAngle._90deg:
         result[:, 0] = (FloorPlan.MAX_COORDINATE + 1) - arr[:, 1]

@@ -21,9 +21,9 @@ preprocessing:
 model:
   model_name: "fast_test_model"
   max_seq_len: 320
-  n_layer: 12
-  n_head: 8
-  n_embd: 256
+  hidden_size: 5         # embedding dim
+  sliding_window: 10
+  intermediate_size: 128
 
 training:
   epochs: 2

@@ -40,6 +40,15 @@ def random_enum_vector(enum_class, size):
     return [random.choice(list(enum_class)) for _ in range(size)]
 
 
+def load_dataset(path):
+    data = sio.loadmat(path, squeeze_me=True, struct_as_record=False)['data']
+    invalid_plans = load_invalid()
+
+    data = [plan for plan in data if not plan.name in invalid_plans]
+
+    return data
+
+
 def data_augmentation(plans, config):
     new_plans = []
     
@@ -111,7 +120,7 @@ def main(argv):
     prep_config = config["preprocessing"]
     paths_config = config["paths"]
 
-    data = sio.loadmat(args.path_to_dataset, squeeze_me=True, struct_as_record=False)['data']
+    data = load_dataset(args.path_to_dataset)
     print("Dataset loaded")
 
     np.random.shuffle(data)
@@ -121,9 +130,7 @@ def main(argv):
         floor_plans_cnt = min(floor_plans_cnt, prep_config["max_floor_plans"])
 
     data = data[0:floor_plans_cnt]
-
-    invalid_plans = load_invalid()
-    plans = [from_mat_file(plan) for plan in data if not plan.name in invalid_plans]
+    plans = [from_mat_file(plan) for plan in data]
 
     if "data_augmentation" in prep_config:
         plans = data_augmentation(plans, prep_config["data_augmentation"])
@@ -133,9 +140,6 @@ def main(argv):
     validate_cnt = int(floor_plans_cnt * prep_config["validate_size"])
     test_cnt = int(floor_plans_cnt * prep_config["test_size"])
     train_cnt = floor_plans_cnt - validate_cnt - test_cnt
-
-    
-    print(f"Loaded {len(invalid_plans)} invalid plans")
 
     print("Preprocessing train dataset")
     preprocess(paths_config["input_data"] + "/train.txt", plans[0:train_cnt])
