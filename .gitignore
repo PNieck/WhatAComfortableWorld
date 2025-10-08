@@ -19,3 +19,6 @@ job_id
 
 # Log files
 *.log
+
+# Tensorboard logs
+runs/

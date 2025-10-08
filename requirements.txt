@@ -7,3 +7,5 @@ transformers
 matplotlib
 datasets
 accelerate
+tqdm
+tensorboard

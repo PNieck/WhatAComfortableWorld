@@ -7,28 +7,38 @@ except ImportError:
     from yaml import Loader
 
 from datasets import load_dataset
-import torch
 from transformers import (
     PreTrainedTokenizer,
-    DataCollatorForLanguageModeling,
-    Trainer,
-    TrainingArguments,
     set_seed,
 )
 
 import floor_plan_tokenizer
-from src.model import FloorPlanGenModel
+from src.model import get_model
+from src.train_loop import train
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
     return tokenizer(
         examples["text"],
-        padding=True,
+        padding=False,      # Collator is going to add the padding
         truncation=True,
         max_length=seq_len,
-        return_tensors="pt"
     )
 
+
+def load_floor_plans_dataset(path: str):
+    dataset = load_dataset(
+        "text",
+        data_files=[path + "/train.txt"]
+    )
+
+    dataset["test"] = load_dataset(
+        "text",
+        data_files=[path + "/test.txt"]
+    )["train"]
+
+    return dataset
+    
 
 def main():
     p = argparse.ArgumentParser(description="Train model from scratch")
@@ -53,74 +63,28 @@ def main():
     tokenizer = floor_plan_tokenizer.FloorPlanTokenizer()
 
     print("Initializing model from scratch…")
-    model = FloorPlanGenModel(model_config, len(tokenizer))
+    model = get_model(model_config, len(tokenizer))
 
     model_size = sum(t.numel() for t in model.parameters())
     print(f"Model size: {model_size/1000**2:.1f}M parameters")
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Using device: {device}')
-    model.to(device)
-
     # Load dataset
     print("Loading datasets")
-    train_dataset = load_dataset(
-        "text",
-        data_files=[paths_config["input_data"] + "/train.txt"]
-    )
-
-    test_dataset = load_dataset(
-        "text",
-        data_files=[paths_config["input_data"] + "/test.txt"]
-    )
-
+    dataset = load_floor_plans_dataset(paths_config["input_data"])
 
     # Tokenize
-    train_tokenized = train_dataset.map(
+    tokenized_dataset = dataset.map(
         lambda ex: tokenize_function(ex, tokenizer, model_config["max_seq_len"]),
         batched=True,
         remove_columns=["text"],
     )
-
-    test_tokenized = test_dataset.map(
-        lambda ex: tokenize_function(ex, tokenizer, model_config["max_seq_len"]),
-        batched=True,
-        remove_columns=["text"],
-    )
-
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-
-    training_args = TrainingArguments(
-        output_dir=paths_config["output_data"],
-        overwrite_output_dir=True,
-        num_train_epochs=train_config["epochs"],
-        per_device_train_batch_size=train_config["batch_size"],
-        per_device_eval_batch_size=train_config["batch_size"],
-        logging_steps=100,
-        eval_steps=500,
-        save_steps=500,
-        save_total_limit=2,
-        learning_rate=float(train_config["lr"]),
-        lr_scheduler_type="cosine",
-        gradient_accumulation_steps=1,
-        report_to="none",
-        save_safetensors=False
-    )
-
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_tokenized["train"],
-        eval_dataset=test_tokenized["train"],
-        processing_class=tokenizer,
-        data_collator=data_collator,
-    )
+    tokenized_dataset.set_format("torch")
 
     print("Starting training…")
-    trainer.train()
+    train(model, tokenizer, tokenized_dataset, train_config)
 
     print("Saving model")
-    model.save(paths_config["trained_model"])
+    model.save_pretrained(paths_config["trained_model"])
 
     print(f"\nAll done.")
 
