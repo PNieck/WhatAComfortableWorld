@@ -30,18 +30,6 @@ def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
     )
 
 
-def group_texts(examples, block_size: int):
-    # Concatenate then split into fixed-size blocks
-    concatenated = {k: sum(examples[k], []) for k in examples.keys()}
-    total_length = (len(concatenated["input_ids"]) // block_size) * block_size
-    result = {
-        k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
-        for k, t in concatenated.items()
-    }
-    result["labels"] = result["input_ids"].copy()
-    return result
-
-
 def main():
     p = argparse.ArgumentParser(description="Train model from scratch")
 
@@ -100,17 +88,6 @@ def main():
         remove_columns=["text"],
     )
 
-    # Group into contiguous blocks for causal LM
-    grouped_train = train_tokenized.map(
-        lambda ex: group_texts(ex, model_config["max_seq_len"]),
-        batched=True,
-    )
-
-    grouped_test = test_tokenized.map(
-        lambda ex: group_texts(ex, model_config["max_seq_len"]),
-        batched=True,
-    )
-
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     training_args = TrainingArguments(
@@ -133,8 +110,8 @@ def main():
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=grouped_train["train"],
-        eval_dataset=grouped_test["train"],
+        train_dataset=train_tokenized["train"],
+        eval_dataset=test_tokenized["train"],
         processing_class=tokenizer,
         data_collator=data_collator,
     )
