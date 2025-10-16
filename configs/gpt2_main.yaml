@@ -1,0 +1,33 @@
+general:
+  seed: 42
+
+paths:
+  input_data: "./data/gpt2_main/input/"
+  output_data: "./data/gpt2_main/output/"
+  trained_model: "./models/gpt2/"
+
+preprocessing:
+  test_size: 0.05
+  validate_size: 0.005
+  data_augmentation:
+    - permutation:
+        percentage: 0.4
+    - symmetry:
+        percentage: 0.4
+    - rotation:
+        percentage: 0.4
+
+model:
+  model_name: "gpt2_main_model"
+  max_seq_len: 320
+  n_layer: 12
+  n_head: 8
+  n_embd: 256
+
+training:
+  epochs: 150
+  lr: 1e-5
+  batch_size: 32
+  eval_steps: 500
+  log_comment: "_main_gpt2_training"
+

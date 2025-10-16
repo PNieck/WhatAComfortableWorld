@@ -1,0 +1,33 @@
+general:
+  seed: 42
+
+paths:
+  input_data: "./data/gpt2_fast_test/input"
+  output_data: "./data/gpt2_fast_test/output"
+  trained_model: "./models/gpt2_fast_test/"
+
+preprocessing:
+  test_size: 0.1
+  validate_size: 0.1
+  max_floor_plans: 10
+  data_augmentation:
+    - permutation:
+        percentage: 0.4
+    - symmetry:
+        percentage: 0.4
+    - rotation:
+        percentage: 0.4
+
+model:
+  model_name: "fast_test_model_gpt2"
+  max_seq_len: 320
+  n_layer: 12
+  n_head: 8
+  n_embd: 256
+
+training:
+  epochs: 10
+  lr: 1e-6
+  batch_size: 32
+  eval_steps: 2
+  log_comment: "_Fast_test_training"
