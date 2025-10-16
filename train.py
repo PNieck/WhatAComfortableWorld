@@ -6,7 +6,6 @@ try:
 except ImportError:
     from yaml import Loader
 
-from datasets import load_dataset
 from transformers import (
     PreTrainedTokenizer,
     set_seed,
@@ -15,6 +14,7 @@ from transformers import (
 import floor_plan_tokenizer
 from src.model import get_model
 from src.train_loop import train
+from src.dataset_loader import load_floor_plans_dataset
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
@@ -24,20 +24,6 @@ def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
         truncation=True,
         max_length=seq_len,
     )
-
-
-def load_floor_plans_dataset(path: str):
-    dataset = load_dataset(
-        "text",
-        data_files=[path + "/train.txt"]
-    )
-
-    dataset["test"] = load_dataset(
-        "text",
-        data_files=[path + "/test.txt"]
-    )["train"]
-
-    return dataset
     
 
 def main():
