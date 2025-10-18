@@ -27,7 +27,7 @@ model:
 
 training:
   loop_type: "transformers"
-  epochs: 150
+  epochs: 60
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
