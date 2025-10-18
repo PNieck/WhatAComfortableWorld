@@ -1,4 +1,3 @@
-import scipy.io as sio
 import numpy as np
 
 import sys
@@ -13,40 +12,12 @@ except ImportError:
 
 from src.mat_file import from_mat_file 
 from src.sequence import to_sequence
+from src.dataset_loader import load_dataset_from_mat_file
 from src.data_augmentation import permutate, rotation, symmetry, SymmetryType, RotationAngle
-
-
-INVALID_FLOOR_PLANS_FILE = "data/invalid_floor_plans.txt"
-
-
-def load_invalid() -> set[str]:
-    try:
-        with open(INVALID_FLOOR_PLANS_FILE, mode='r') as file:
-            invalid_plans = file.readlines()
-    except FileNotFoundError:
-        print("WARNING: cannot load invalid floor plans list")
-        return set()
-
-    # Remove all white spaces from the end 
-    invalid_plans = [line.rstrip() for line in invalid_plans]
-
-    # Remove comments and empty strings 
-    invalid_plans = [plan for plan in invalid_plans if plan != "" and not plan.startswith("#")]
-
-    return set(invalid_plans)
 
 
 def random_enum_vector(enum_class, size):
     return [random.choice(list(enum_class)) for _ in range(size)]
-
-
-def load_dataset(path):
-    data = sio.loadmat(path, squeeze_me=True, struct_as_record=False)['data']
-    invalid_plans = load_invalid()
-
-    data = [plan for plan in data if not plan.name in invalid_plans]
-
-    return data
 
 
 def data_augmentation(plans, config):
@@ -120,7 +91,7 @@ def main(argv):
     prep_config = config["preprocessing"]
     paths_config = config["paths"]
 
-    data = load_dataset(args.path_to_dataset)
+    data = load_dataset_from_mat_file(args.path_to_dataset)
     print("Dataset loaded")
 
     np.random.shuffle(data)
