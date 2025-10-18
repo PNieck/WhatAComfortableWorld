@@ -7,7 +7,7 @@ paths:
   trained_model: "./models/fast_test/"
 
 preprocessing:
-  test_size: 0.1
+  test_size: 0.3
   validate_size: 0.1
   max_floor_plans: 10
   data_augmentation:
@@ -19,13 +19,15 @@ preprocessing:
         percentage: 0.4
 
 model:
-  model_name: "fast_test_model"
+  name: "fast_test_model"
+  type: "gemma3"
   max_seq_len: 320
   hidden_size: 5         # embedding dim
   sliding_window: 10
   intermediate_size: 128
 
 training:
+  loop_type: "custom"
   epochs: 10
   lr: 1e-6
   batch_size: 32

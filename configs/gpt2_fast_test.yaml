@@ -19,13 +19,15 @@ preprocessing:
         percentage: 0.4
 
 model:
-  model_name: "fast_test_model_gpt2"
+  name: "fast_test_model_gpt2"
+  type: "gpt2"
   max_seq_len: 320
   n_layer: 12
   n_head: 8
   n_embd: 256
 
 training:
+  loop_type: "transformers"
   epochs: 10
   lr: 1e-6
   batch_size: 32

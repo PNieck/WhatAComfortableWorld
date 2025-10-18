@@ -1,9 +1,10 @@
-import torch.nn as nn
+from transformers import (
+    AutoConfig, AutoModelForCausalLM,
+    GPT2Config, GPT2LMHeadModel,
+)
 
-from transformers import AutoConfig, AutoModelForCausalLM
 
-
-def get_model(config, tokens_cnt):
+def get_gemma3(config, tokens_cnt):
     gemmaConfig = AutoConfig.from_pretrained("google/gemma-3-270m")
 
     if "hidden_size" in config:
@@ -24,3 +25,30 @@ def get_model(config, tokens_cnt):
     model.apply(model._init_weights)
 
     return model
+
+
+def get_gpt2(config, tokens_cnt):
+    config = GPT2Config(
+        vocab_size=tokens_cnt,
+        n_positions=config["max_seq_len"],
+        n_ctx=config["max_seq_len"],
+        n_layer=config["n_layer"],
+        n_head=config["n_head"],
+        n_embd=config["n_embd"],
+        bos_token_id=0,  # will be set by tokenizer when resized
+        eos_token_id=1,
+    )
+    model = GPT2LMHeadModel(config)
+
+    model.resize_token_embeddings(tokens_cnt)
+
+    return model
+
+
+def get_model(config, tokens_cnt):
+    if config["type"] == "gemma3":
+        return get_gemma3(config, tokens_cnt)
+    elif config["type"] == "gpt2":
+        return get_gpt2(config, tokens_cnt)
+    else:
+        raise ValueError("Invalid model type")

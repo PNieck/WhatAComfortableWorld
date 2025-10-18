@@ -18,10 +18,12 @@ preprocessing:
         percentage: 0.4
 
 model:
-  model_name: "main_model"
+  name: "main_model"
+  type: "gemma3"
   max_seq_len: 320
 
 training:
+  loop_type: "custom"
   epochs: 150
   lr: 1e-5
   batch_size: 32
