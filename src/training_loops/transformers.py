@@ -14,7 +14,7 @@ def transformers_training_loop(model: nn.Module, tokenizer, dataset, config):
         num_train_epochs=config["epochs"],
         per_device_train_batch_size=config["batch_size"],
         per_device_eval_batch_size=config["batch_size"],
-        logging_steps=2,
+        logging_steps=500,
         eval_steps=500,
         save_steps=500,
         save_total_limit=2,
