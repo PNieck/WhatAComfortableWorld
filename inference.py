@@ -1,4 +1,5 @@
 import argparse
+import re
 import yaml
 try:
     from yaml import CLoader as Loader
@@ -6,12 +7,29 @@ except ImportError:
     from yaml import Loader
 
 import torch
+from torch.utils.data import DataLoader
+
 from transformers import AutoModelForCausalLM
-from datasets import load_dataset
 
 import floor_plan_tokenizer
 from src.drawing import draw_floor_plan
-from src.sequence import from_sequence
+from src.dataset_loader import load_floor_plans_dataset, Split
+from src.model import print_model
+from src.inference_metrics import (
+    ParsabilityRate,
+    CoverageTest,
+    GeomValidityRate
+)
+
+
+def prepare_prompt(seq: str) -> str:
+    match = re.search(r"<Room \d+>", seq)
+    if not match:
+        raise ValueError("No rooms in sequence")
+
+    start = match.start()
+    
+    return { "text": seq[:start] }
 
 
 def main():
@@ -28,37 +46,81 @@ def main():
         config = yaml.load(f, Loader=Loader)
 
     paths_config = config["paths"]
+    inference_config = config["inference"]
 
     tokenizer = floor_plan_tokenizer.FloorPlanTokenizer()
     model = AutoModelForCausalLM.from_pretrained(paths_config["trained_model"])
+    print_model(model)
 
-    # valid_dataset = load_dataset(
-    #     "text",
-    #     data_files=[paths_config["input_data"] + "/validation.txt"]
-    # )
-
-    prompt = "<Bound><Coord 95><Coord 64><Coord 95><Coord 52><Coord 119><Coord 52><Coord 119><Coord 68><Coord 185><Coord 68><Coord 185><Coord 148><Coord 165><Coord 148><Coord 165><Coord 195><Coord 109><Coord 195><Coord 109><Coord 205><Coord 72><Coord 205><Coord 72><Coord 64><Door><Coord 75><Coord 64><Coord 91><Coord 64>"
-    inputs = tokenizer(prompt, return_tensors="pt",  return_token_type_ids=False).to(model.device)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
     model.eval()
 
-    inputs["input_ids"] = inputs["input_ids"][:, 0:-1]
-    inputs["attention_mask"] = inputs["attention_mask"][:, 0:-1]
+    dataset = load_floor_plans_dataset(paths_config["input_data"], Split.VALID)
+    prompts = dataset.map(
+        lambda ex: prepare_prompt(ex["text"]),
+        batched=False,
+    )
+    
+    data_loader = DataLoader(prompts["valid"]["text"], batch_size=32)
 
-    with torch.no_grad():
-        out = model.generate(
-            **inputs,
-            max_new_tokens=200,
-            do_sample=True,
-            top_k=50,
-            top_p=0.95,
+    pars_rate = ParsabilityRate()
+    validity_rate = GeomValidityRate()
+    cov_rate = CoverageTest()
+
+    for batch in data_loader:
+        inputs = tokenizer(
+            batch,
+            return_tensors="pt",
+            padding=True,
+            truncation=False,
         )
 
-    print("\n=== Sample generation ===\n")
-    sample = tokenizer.decode(out[0])
-    print(sample)
+        if device.type != "cpu":
+            inputs = {k: v.to(device) for k, v in inputs.items()}
 
-    floor_plan = from_sequence(sample, "generated")
-    draw_floor_plan(floor_plan)
+        inputs["input_ids"] = inputs["input_ids"][:, 0:-1]
+        inputs["attention_mask"] = inputs["attention_mask"][:, 0:-1]
+
+        with torch.no_grad():
+
+            # Greedy decoding
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=300,
+                do_sample=False,
+            )
+
+        results = [tokenizer.decode(out, skip_special_tokens=True) for out in outputs]
+
+        floor_plans = pars_rate.parse(results)
+        if not floor_plans:
+            continue
+
+        floor_plans = validity_rate.filter_out_invalid(floor_plans)
+        if not floor_plans:
+            continue
+
+        # for plan in floor_plans:
+        #     draw_floor_plan(plan)
+
+        cov_rate.measure(floor_plans)
+
+    print(f"Parsability: {pars_rate.rate()}")
+    print(f"Examples {pars_rate.examples_cnt}")
+    print(f"Failures {pars_rate.invalid_seq}")
+
+    print("\n")
+    print(pars_rate.error_types)
+
+    print("\n")
+    print(f"Validity rate {validity_rate.rate()}")
+    print(f"Valid examples {validity_rate.valid_examples}")
+
+    print("\n")
+    print(f"Room coverage: {cov_rate.coverage_rate()}")
+    print(f"Outside area rate {cov_rate.area_outside_rate()}")
+    print(f"Fully covered floor plans: {cov_rate.correct_floor_plans}")
 
 
 if __name__ == "__main__":
