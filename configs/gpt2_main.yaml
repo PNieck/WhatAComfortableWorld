@@ -4,7 +4,7 @@ general:
 paths:
   input_data: "./data/gpt2_main/input/"
   output_data: "./data/gpt2_main/output/"
-  trained_model: "./models/gpt2/"
+  trained_model: "./models/gpt2_custom_loop/"
 
 preprocessing:
   test_size: 0.05
@@ -32,4 +32,3 @@ training:
   batch_size: 32
   eval_steps: 500
   log_comment: "_main_gpt2_training"
-

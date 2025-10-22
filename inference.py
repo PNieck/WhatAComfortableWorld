@@ -46,7 +46,6 @@ def main():
         config = yaml.load(f, Loader=Loader)
 
     paths_config = config["paths"]
-    inference_config = config["inference"]
 
     tokenizer = floor_plan_tokenizer.FloorPlanTokenizer()
     model = AutoModelForCausalLM.from_pretrained(paths_config["trained_model"])
