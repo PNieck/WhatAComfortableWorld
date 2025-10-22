@@ -12,7 +12,7 @@ from transformers import (
 )
 
 import floor_plan_tokenizer
-from src.model import get_model
+from src.model import get_model, print_model
 from src.train_loop import train
 from src.dataset_loader import load_floor_plans_dataset
 
@@ -51,8 +51,7 @@ def main():
     print("Initializing model from scratch…")
     model = get_model(model_config, len(tokenizer))
 
-    model_size = sum(t.numel() for t in model.parameters())
-    print(f"Model size: {model_size/1000**2:.1f}M parameters")
+    print_model(model)
 
     # Load dataset
     print("Loading datasets")

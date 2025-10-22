@@ -3,6 +3,8 @@ from transformers import (
     GPT2Config, GPT2LMHeadModel,
 )
 
+import torch.nn as nn
+
 
 def get_gemma3(config, tokens_cnt):
     gemmaConfig = AutoConfig.from_pretrained("google/gemma-3-270m")
@@ -45,10 +47,15 @@ def get_gpt2(config, tokens_cnt):
     return model
 
 
-def get_model(config, tokens_cnt):
+def get_model(config, tokens_cnt) -> nn.Module:
     if config["type"] == "gemma3":
         return get_gemma3(config, tokens_cnt)
     elif config["type"] == "gpt2":
         return get_gpt2(config, tokens_cnt)
     else:
         raise ValueError("Invalid model type")
+    
+
+def print_model(model: nn.Module):
+    model_size = sum(t.numel() for t in model.parameters())
+    print(f"Model size: {model_size/1000**2:.1f}M parameters")
