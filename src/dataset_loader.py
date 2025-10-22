@@ -2,20 +2,34 @@ import scipy.io as sio
 
 from datasets import load_dataset
 
+from enum import IntFlag, auto
+
 
 INVALID_FLOOR_PLANS_FILE = "data/invalid_floor_plans.txt"
 
 
-def load_floor_plans_dataset(path: str):
+class Split(IntFlag):
+    TRAIN = auto()
+    VALID = auto()
+    TEST = auto()
+
+
+def load_floor_plans_dataset(path: str, splits: Split):
+    data_files = {}
+
+    if splits & Split.TRAIN:
+        data_files["train"] = path + "/train.txt"
+    
+    if splits & Split.TEST:
+        data_files["test"] = path + "/test.txt"
+
+    if splits & Split.VALID:
+        data_files["valid"] = path + "/validation.txt"
+    
     dataset = load_dataset(
         "text",
-        data_files=[path + "/train.txt"]
+        data_files=data_files
     )
-
-    dataset["test"] = load_dataset(
-        "text",
-        data_files=[path + "/test.txt"]
-    )["train"]
 
     return dataset
 
@@ -38,10 +52,11 @@ def _load_invalid() -> set[str]:
 
 
 
-def load_dataset_from_mat_file(path: str):
+def load_dataset_from_mat_file(path: str, exclude_invalid=True):
     data = sio.loadmat(path, squeeze_me=True, struct_as_record=False)['data']
-    invalid_plans = _load_invalid()
 
-    data = [plan for plan in data if not plan.name in invalid_plans]
+    if exclude_invalid:
+        invalid_plans = _load_invalid()
+        data = [plan for plan in data if not plan.name in invalid_plans]
 
     return data
