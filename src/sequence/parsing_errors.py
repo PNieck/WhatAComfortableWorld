@@ -3,9 +3,14 @@ class FloorPlanSequenceParsingError(Exception):
         super().__init__(message)
 
 
-class CoordinatesNumberError(FloorPlanSequenceParsingError):
+class OddNumberOfCoordinatesError(FloorPlanSequenceParsingError):
     def __init__(self, message):
         super().__init__(message)
+
+
+class TooSmallNumberOfCoordinatesError(FloorPlanSequenceParsingError):
+    def __init__(self, nb: int):
+        super().__init__(f"Coordinates number {nb} is too small")
 
 
 class NoRoomsError(FloorPlanSequenceParsingError):

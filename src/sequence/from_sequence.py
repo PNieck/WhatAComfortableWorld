@@ -11,10 +11,12 @@ def _coords_from_sequence(seq: str):
     matches = re.findall(r"<Coord (\d+)>", seq)
 
     if len(matches) % 2 != 0:
-        raise CoordinatesNumberError(f"Coordinates number ({len(matches)}) is not divisible by 2")
-    
+        raise OddNumberOfCoordinatesError(f"Coordinates number ({len(matches)}) is not divisible by 2")
+
     coords = np.array(list(map(int, matches)), dtype=np.uint8)
-    return coords.reshape(-1, 2)
+    result = coords.reshape(-1, 2)
+    
+    return result
 
 
 def _boundary_from_sequence(seq: str) -> np.ndarray:
@@ -22,7 +24,11 @@ def _boundary_from_sequence(seq: str) -> np.ndarray:
     if not match:
         raise NoBoundaryError()
     
-    return _coords_from_sequence(match.group())
+    result = _coords_from_sequence(match.group())
+    if result.shape[0] < 3:
+        raise TooSmallNumberOfCoordinatesError(result.shape[0])
+    
+    return result
 
 
 def _door_from_sequence(seq: str) -> FrontDoor:
@@ -48,6 +54,8 @@ def _rooms_from_sequence(seq: str) -> List[Room]:
         room_type = int(room_type_match.group(1))
 
         boundary = _coords_from_sequence(match.group())
+        if boundary.shape[0] < 3:
+            raise TooSmallNumberOfCoordinatesError(boundary.shape[0])
 
         result.append(Room(RoomType(room_type), boundary))
 
