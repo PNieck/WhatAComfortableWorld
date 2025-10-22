@@ -3,6 +3,8 @@ from typing import List
 
 import numpy as np
 
+from shapely import Polygon
+
 
 class RoomType(Enum):
     LivingRoom = 0
@@ -24,10 +26,17 @@ class Room:
     @property
     def boundary_len(self):
         return self.boundary.shape[0]
+    
+    @property
+    def area(self) -> float:
+        return Polygon(self.boundary).area
 
     def __init__(self, type: RoomType, boundary):
         self.type = type
         self.boundary = boundary
+
+    def boundary_polygon(self) -> Polygon:
+        return Polygon(self.boundary)
 
 
 class FrontDoor:
@@ -72,8 +81,6 @@ class FrontDoor:
         return cls(np.array([[x1, y1], [x2, y2]], np.uint8))
 
 
-
-
 class FloorPlan:
     MAX_COORDINATE = 255
 
@@ -90,3 +97,9 @@ class FloorPlan:
         self.boundary: np.ndarray = boundary
         self.front_door: FrontDoor = front_door
         self.rooms: List[Room] = rooms
+
+    def polygon(self) -> Polygon:
+        return Polygon(self.boundary)
+    
+    def rooms_polygons(self) -> List[Polygon]:
+        return [room.boundary_polygon() for room in self.rooms]
