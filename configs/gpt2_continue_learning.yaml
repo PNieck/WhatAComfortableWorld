@@ -1,0 +1,35 @@
+general:
+  seed: 42
+
+paths:
+  input_data: "./data/gpt2_main/input/"
+  output_data: "./data/gpt2_main/output/"
+  trained_model: "./models/gpt2_continued/"
+
+preprocessing:
+  test_size: 0.05
+  validate_size: 0.005
+  data_augmentation:
+    - permutation:
+        percentage: 0.4
+    - symmetry:
+        percentage: 0.4
+    - rotation:
+        percentage: 0.4
+
+model:
+  name: "gpt2_main_model"
+  type: "existing"
+  input_model_path: "./models/gpt2_custom_loop"
+  max_seq_len: 320
+  n_layer: 12
+  n_head: 8
+  n_embd: 256
+
+training:
+  loop_type: "custom"
+  epochs: 60
+  lr: 1e-5
+  batch_size: 32
+  eval_steps: 500
+  log_comment: "_main_gpt2__continue_training"

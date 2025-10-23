@@ -52,6 +52,8 @@ def get_model(config, tokens_cnt) -> nn.Module:
         return get_gemma3(config, tokens_cnt)
     elif config["type"] == "gpt2":
         return get_gpt2(config, tokens_cnt)
+    elif config["type"] == "existing":
+        return AutoModelForCausalLM.from_pretrained(config["input_model_path"])
     else:
         raise ValueError("Invalid model type")
     
