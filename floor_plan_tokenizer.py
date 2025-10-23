@@ -6,7 +6,7 @@ import tokens
 
 
 class FloorPlanTokenizer(PreTrainedTokenizer):
-    def __init__(self, res=256):
+    def __init__(self, res=256, *args, **kwargs):
         self.resolution = res
 
         self.unk_token = tokens.UNK_TOKEN
@@ -42,6 +42,7 @@ class FloorPlanTokenizer(PreTrainedTokenizer):
             bos_token=self.bos_token,
             eos_token=self.eos_token,
             pad_token=self.pad_token,
+            *args, **kwargs
         )
 
 

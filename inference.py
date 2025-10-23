@@ -21,6 +21,8 @@ from src.inference_metrics import (
     GeomValidityRate
 )
 
+import tokens
+
 
 def prepare_prompt(seq: str) -> str:
     match = re.search(r"<Room \d+>", seq)
@@ -47,7 +49,7 @@ def main():
 
     paths_config = config["paths"]
 
-    tokenizer = floor_plan_tokenizer.FloorPlanTokenizer()
+    tokenizer = floor_plan_tokenizer.FloorPlanTokenizer(padding_side="left")
     model = AutoModelForCausalLM.from_pretrained(paths_config["trained_model"])
     print_model(model)
 
@@ -73,11 +75,14 @@ def main():
             return_tensors="pt",
             padding=True,
             truncation=False,
+            padding_side="left",
+            return_token_type_ids=False
         )
 
         if device.type != "cpu":
             inputs = {k: v.to(device) for k, v in inputs.items()}
 
+        # Remove EOS tokens from the end
         inputs["input_ids"] = inputs["input_ids"][:, 0:-1]
         inputs["attention_mask"] = inputs["attention_mask"][:, 0:-1]
 
@@ -88,6 +93,7 @@ def main():
                 **inputs,
                 max_new_tokens=300,
                 do_sample=False,
+                eos_token_id=tokens.END_SEQ_TOKEN_ID
             )
 
         results = [tokenizer.decode(out, skip_special_tokens=True) for out in outputs]

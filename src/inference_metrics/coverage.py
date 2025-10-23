@@ -1,7 +1,6 @@
 from typing import List
 
 from src.floor_plan import FloorPlan
-from src.drawing import draw_floor_plan
 
 import shapely
 
@@ -32,7 +31,6 @@ class CoverageTest:
 
             if boundary_area == inter_area and diff_area == 0:
                 self.correct_floor_plans += 1
-                draw_floor_plan(floor_plan)
 
     
     def coverage_rate(self) -> float:
