@@ -27,7 +27,7 @@ model:
   n_embd: 256
 
 training:
-  loop_type: "transformers"
+  loop_type: "custom"
   epochs: 10
   lr: 1e-6
   batch_size: 32
