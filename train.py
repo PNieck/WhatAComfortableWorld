@@ -11,16 +11,16 @@ from transformers import (
     set_seed,
 )
 
-import floor_plan_tokenizer
-from src.model import get_model, print_model
+from src.models import print_model
 from src.train_loop import train
 from src.dataset_loader import load_floor_plans_dataset, Split
+from src.model_tokenizer_abstract_factory import get_model_and_tokenizer
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
     return tokenizer(
         examples["text"],
-        padding=False,      # Collator is going to add the padding
+        padding=True,      # Collator is going to add the padding
         truncation=True,
         max_length=seq_len,
     )
@@ -46,12 +46,9 @@ def main():
     if "seed" in config["general"]:
         set_seed(config["general"]["seed"])
 
-    tokenizer = floor_plan_tokenizer.FloorPlanTokenizer()
-
-    print("Initializing model from scratch…")
-    model = get_model(model_config, len(tokenizer))
-
+    model, tokenizer = get_model_and_tokenizer(model_config)
     print_model(model)
+    print(model)
 
     # Load dataset
     print("Loading datasets")
