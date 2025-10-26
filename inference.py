@@ -11,10 +11,11 @@ from torch.utils.data import DataLoader
 
 from transformers import AutoModelForCausalLM
 
-import floor_plan_tokenizer
+import src.tokenizers.floor_plan_tokenizer as floor_plan_tokenizer
 from src.drawing import draw_floor_plan
 from src.dataset_loader import load_floor_plans_dataset, Split
-from src.model import print_model
+from src.models import print_model
+from src.model_tokenizer_abstract_factory import get_pretrained_model_and_tokenizer
 from src.inference_metrics import (
     ParsabilityRate,
     CoverageTest,
@@ -49,9 +50,10 @@ def main():
 
     paths_config = config["paths"]
 
-    tokenizer = floor_plan_tokenizer.FloorPlanTokenizer(padding_side="left")
-    model = AutoModelForCausalLM.from_pretrained(paths_config["trained_model"])
+    b = "with_coord_indices" in config["model"]
+    model, tokenizer = get_pretrained_model_and_tokenizer(paths_config["trained_model"], b)
     print_model(model)
+    print(model)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -83,8 +85,12 @@ def main():
             inputs = {k: v.to(device) for k, v in inputs.items()}
 
         # Remove EOS tokens from the end
-        inputs["input_ids"] = inputs["input_ids"][:, 0:-1]
-        inputs["attention_mask"] = inputs["attention_mask"][:, 0:-1]
+        for k, v in inputs.items():
+            inputs[k] = v[:, 0:-1]
+
+
+        # inputs["input_ids"] = inputs["input_ids"][:, 0:-1]
+        # inputs["attention_mask"] = inputs["attention_mask"][:, 0:-1]
 
         with torch.no_grad():
 
@@ -96,7 +102,7 @@ def main():
                 eos_token_id=tokens.END_SEQ_TOKEN_ID
             )
 
-        results = [tokenizer.decode(out, skip_special_tokens=True) for out in outputs]
+        results = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
         floor_plans = pars_rate.parse(results)
         if not floor_plans:

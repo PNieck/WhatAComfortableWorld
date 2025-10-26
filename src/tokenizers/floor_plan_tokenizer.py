@@ -1,6 +1,8 @@
-from transformers import PreTrainedTokenizer
-
+from functools import singledispatchmethod
 import re
+
+from transformers import PreTrainedTokenizer
+import torch
 
 import tokens
 
@@ -92,3 +94,25 @@ class FloorPlanTokenizer(PreTrainedTokenizer):
         else:
             # If you ever add sentence-pair mode
             return [0] * (len(token_ids_0) + 2) + [1] * (len(token_ids_1) + 1)
+    
+    @singledispatchmethod
+    def is_coord_token(self, token):
+        raise TypeError(f"Invalid type: {type(token)}")
+        
+    @is_coord_token.register
+    def _(self, token: torch.Tensor) -> torch.Tensor:
+        min_coord_token = tokens.coord_token_id(0)
+        max_coord_token = tokens.coord_token_id(self.resolution)
+
+        return (token >= min_coord_token) & (token <= max_coord_token)
+    
+    @is_coord_token.register
+    def _(self, token: list):
+        return [self.is_coord_token(val) for val in token]
+    
+    @is_coord_token.register
+    def _(self, token: int) -> bool:
+        min_coord_token = tokens.coord_token_id(0)
+        max_coord_token = tokens.coord_token_id(self.resolution)
+
+        return token >= min_coord_token and token <= max_coord_token

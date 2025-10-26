@@ -4,7 +4,7 @@ general:
 paths:
   input_data: "./data/gpt2_main/input/"
   output_data: "./data/gpt2_main/output/"
-  trained_model: "./models/gpt2_custom_loop/"
+  trained_model: "./models/gpt2_with coord_indices/"
 
 preprocessing:
   test_size: 0.05
@@ -18,17 +18,18 @@ preprocessing:
         percentage: 0.4
 
 model:
-  name: "gpt2_main_model"
+  name: "gpt2_with_coord_indices"
   type: "gpt2"
+  with_coord_indices: True
   max_seq_len: 320
   n_layer: 12
   n_head: 8
-  n_embd: 256   # embedding and hidden states dimension
+  n_embd: 256
 
 training:
-  loop_type: "transformers"
+  loop_type: "custom"
   epochs: 60
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
-  log_comment: "_main_gpt2_training"
+  log_comment: "_coord_indices_training"

@@ -20,6 +20,7 @@ def evaluate(model: nn.Module, test_loader: DataLoader, device, tb: SummaryWrite
     correct_preds = 0
     total_preds = 0
 
+    model.eval()
     with torch.no_grad():
         for batch in test_loader:
             batch = {k: v.to(device) for k, v in batch.items()}
@@ -102,6 +103,7 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config):
                 tb.add_scalar("Train avg loss", train_avg_loss, step)
 
                 eval_avg_loss, accuracy = evaluate(model, test_dataloader, device, tb, step)
+                model.train()
 
                 print(f"Epoch: {epoch}/{num_epochs}, step: {step}/{num_training_steps}")
                 print(f"\tAvg train loss: {train_avg_loss:.3f}, Avg eval loss: {eval_avg_loss:.3f}, eval_accuracy: {accuracy:.3f}")
