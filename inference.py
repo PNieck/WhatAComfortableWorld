@@ -88,10 +88,6 @@ def main():
         for k, v in inputs.items():
             inputs[k] = v[:, 0:-1]
 
-
-        # inputs["input_ids"] = inputs["input_ids"][:, 0:-1]
-        # inputs["attention_mask"] = inputs["attention_mask"][:, 0:-1]
-
         with torch.no_grad():
 
             # Greedy decoding

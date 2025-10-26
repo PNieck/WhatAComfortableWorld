@@ -43,7 +43,7 @@ def evaluate(model: nn.Module, test_loader: DataLoader, device, tb: SummaryWrite
     accuracy = correct_preds / total_preds
 
     tb.add_scalar("Eval avg loss", eval_avg_loss, step)
-    tb.add_scalar("Eval precision", accuracy, step)
+    tb.add_scalar("Eval accuracy", accuracy, step)
 
     return (eval_avg_loss, accuracy)
 
@@ -106,7 +106,7 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config):
                 model.train()
 
                 print(f"Epoch: {epoch}/{num_epochs}, step: {step}/{num_training_steps}")
-                print(f"\tAvg train loss: {train_avg_loss:.3f}, Avg eval loss: {eval_avg_loss:.3f}, eval_accuracy: {accuracy:.3f}")
+                print(f"\tAvg train loss: {train_avg_loss:.5f}, Avg eval loss: {eval_avg_loss:.5f}, eval_accuracy: {accuracy:.5f}")
 
             progress_bar.update(1)
             step += 1

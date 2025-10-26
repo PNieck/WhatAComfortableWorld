@@ -10,6 +10,7 @@ from transformers import (
     PreTrainedTokenizer,
     set_seed,
 )
+from transformers.utils import PaddingStrategy
 
 from src.models import print_model
 from src.train_loop import train
@@ -20,7 +21,7 @@ from src.model_tokenizer_abstract_factory import get_model_and_tokenizer
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
     return tokenizer(
         examples["text"],
-        padding=True,      # Collator is going to add the padding
+        padding=PaddingStrategy.MAX_LENGTH, # TODO: change when tokenizer padding problem will be fixed
         truncation=True,
         max_length=seq_len,
     )
