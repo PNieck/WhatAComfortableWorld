@@ -34,6 +34,7 @@ class GPT2ModelWithCoordIndices(GPT2LMHeadModel):
         assert inputs_embeds is None
 
         coord_indices = self.coord_indices(input_ids)
+        coord_indices.to(input_ids.get_device())
 
         index_embeds = self.coord_index_embd(coord_indices)
         tokens_embeds = self.transformer.wte(input_ids)
