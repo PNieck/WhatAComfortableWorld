@@ -34,7 +34,7 @@ class GPT2ModelWithCoordIndices(GPT2LMHeadModel):
         assert inputs_embeds is None
 
         coord_indices = self.coord_indices(input_ids)
-        coord_indices.to(input_ids.get_device())
+        #coord_indices.to(input_ids.get_device())
 
         index_embeds = self.coord_index_embd(coord_indices)
         tokens_embeds = self.transformer.wte(input_ids)
@@ -75,7 +75,7 @@ class GPT2ModelWithCoordIndices(GPT2LMHeadModel):
         c_n = torch.zeros(c_n_len, dtype=torch.long)
 
         rows = torch.nonzero(neg_mask)[:, 0]
-        indices = rows + torch.arange(neg_sum) + 1
+        indices = rows + torch.arange(neg_sum, device=input_ids.device) + 1
         
         c_n[indices] = c[neg_mask]
         
