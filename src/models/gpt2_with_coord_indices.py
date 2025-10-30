@@ -72,11 +72,10 @@ class GPT2ModelWithCoordIndices(GPT2LMHeadModel):
         batch =  input_ids.shape[0]
         neg_sum = torch.sum(neg_mask)
         c_n_len = neg_sum + batch + 1
-        c_n = torch.zeros(c_n_len, dtype=torch.long)
+        c_n = torch.zeros(c_n_len, dtype=torch.long, device=input_ids.device)
 
         rows = torch.nonzero(neg_mask)[:, 0]
         indices = rows + torch.arange(neg_sum, device=input_ids.device) + 1
-        indices.to(input_ids.device)
         
         c_n[indices] = c[neg_mask]
         
