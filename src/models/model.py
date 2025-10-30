@@ -18,6 +18,9 @@ def get_model(config, tokens_cnt) -> nn.Module:
         return get_gpt2(config, tokens_cnt)
     
     elif config["type"] == "existing":
+        if config["with_coord_indices"]:
+            return GPT2ModelWithCoordIndices.from_pretrained(config["input_model_path"])
+        
         return AutoModelForCausalLM.from_pretrained(config["input_model_path"])
     
     else:
