@@ -31,6 +31,7 @@ class FloorPlanWithCoordIndicesTokenizer(FloorPlanTokenizer):
             return_offsets_mapping = False, # Whether or not to return (char_start, char_end) for each token.
             return_length = False,
             verbose = True,
+            return_coord_ids: bool = True,
             **kwargs
         ):
 
@@ -58,10 +59,17 @@ class FloorPlanWithCoordIndicesTokenizer(FloorPlanTokenizer):
             **kwargs
         )
 
-        # Coord token mask
-        mask = super().is_coord_token(result["input_ids"])
+        if return_coord_ids:
+            result["coord_indices"] = self.coord_indices(result)
 
-        coord_indices = self._get_output_tensor(mask)
+        return result
+    
+
+    def coord_indices(self, input_ids):
+        # Coord token mask
+        mask = super().is_coord_token(input_ids)
+
+        coord_indices = self._get_output_tensor(input_ids)
 
         for i, l in enumerate(coord_indices):
             is_even = 0
@@ -72,10 +80,8 @@ class FloorPlanWithCoordIndicesTokenizer(FloorPlanTokenizer):
                 else:
                     is_even = 0
         
-        result["coord_indices"] = coord_indices
-
-        return result
-        
+        return coord_indices
+    
 
     def pad(
             self,
@@ -107,7 +113,7 @@ class FloorPlanWithCoordIndicesTokenizer(FloorPlanTokenizer):
     
     @_get_output_tensor.register
     def _(self, mask: torch.Tensor):
-        return torch.zeros_like(mask, dtype=torch.int)
+        return torch.zeros_like(mask)
     
     @_get_output_tensor.register
     def _(self, mask: list):

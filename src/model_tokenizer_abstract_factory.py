@@ -14,10 +14,12 @@ def get_model_and_tokenizer(config) -> Tuple[nn.Module, FloorPlanTokenizer]:
     if "with_coord_indices" not in config:
         config["with_coord_indices"] = False
 
-    if config["with_coord_indices"]:
-        tokenizer = FloorPlanWithCoordIndicesTokenizer()
-    else:
-        tokenizer = FloorPlanTokenizer()
+    # if config["with_coord_indices"]:
+    #     tokenizer = FloorPlanWithCoordIndicesTokenizer()
+    # else:
+    #     tokenizer = FloorPlanTokenizer()
+
+    tokenizer = FloorPlanTokenizer()
 
     model = get_model(config, len(tokenizer))
 
@@ -30,9 +32,11 @@ def get_pretrained_model_and_tokenizer(path, with_coord_indices: bool) -> Tuple[
     else:
         model = AutoModelForCausalLM.from_pretrained(path)
 
-    if isinstance(model, GPT2ModelWithCoordIndices):
-        tokenizer = FloorPlanWithCoordIndicesTokenizer()
-    else:
-        tokenizer = FloorPlanTokenizer()
+    # if isinstance(model, GPT2ModelWithCoordIndices):
+    #     tokenizer = FloorPlanWithCoordIndicesTokenizer()
+    # else:
+    #     tokenizer = FloorPlanTokenizer()
+
+    tokenizer = FloorPlanTokenizer()
     
     return model, tokenizer

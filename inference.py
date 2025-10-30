@@ -95,7 +95,8 @@ def main():
                 **inputs,
                 max_new_tokens=300,
                 do_sample=False,
-                eos_token_id=tokens.END_SEQ_TOKEN_ID
+                eos_token_id=tokens.END_SEQ_TOKEN_ID,
+                use_cache=False
             )
 
         results = tokenizer.batch_decode(outputs, skip_special_tokens=True)
