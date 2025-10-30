@@ -9,13 +9,15 @@ except ImportError:
 import torch
 from torch.utils.data import DataLoader
 
-from transformers import AutoModelForCausalLM
-
-import src.tokenizers.floor_plan_tokenizer as floor_plan_tokenizer
+from src.floor_plan_tokenizer import FloorPlanTokenizer
 from src.drawing import draw_floor_plan
 from src.dataset_loader import load_floor_plans_dataset, Split
-from src.models import print_model
-from src.model_tokenizer_abstract_factory import get_pretrained_model_and_tokenizer
+from src.models import (
+    print_model_size,
+    get_pretrained_model,
+    preprocess_model_config
+)
+
 from src.inference_metrics import (
     ParsabilityRate,
     CoverageTest,
@@ -49,10 +51,12 @@ def main():
         config = yaml.load(f, Loader=Loader)
 
     paths_config = config["paths"]
+    model_config = config["model"]
 
-    b = "with_coord_indices" in config["model"]
-    model, tokenizer = get_pretrained_model_and_tokenizer(paths_config["trained_model"], b)
-    print_model(model)
+    tokenizer = FloorPlanTokenizer()
+    model_config = preprocess_model_config(model_config, tokenizer)
+    model = get_pretrained_model(paths_config["trained_model"], model_config)
+    print_model_size(model)
     print(model)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
