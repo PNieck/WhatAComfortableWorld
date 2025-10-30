@@ -10,18 +10,22 @@ from transformers import (
     PreTrainedTokenizer,
     set_seed,
 )
-from transformers.utils import PaddingStrategy
 
-from src.models import print_model
+from src.models import (
+    print_model_size,
+    get_model,
+    preprocess_model_config
+)
+
 from src.train_loop import train
 from src.dataset_loader import load_floor_plans_dataset, Split
-from src.model_tokenizer_abstract_factory import get_model_and_tokenizer
+from src.floor_plan_tokenizer import FloorPlanTokenizer
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
     return tokenizer(
         examples["text"],
-        padding=PaddingStrategy.MAX_LENGTH, # TODO: change when tokenizer padding problem will be fixed
+        padding=False,      
         truncation=True,
         max_length=seq_len,
     )
@@ -47,8 +51,12 @@ def main():
     if "seed" in config["general"]:
         set_seed(config["general"]["seed"])
 
-    model, tokenizer = get_model_and_tokenizer(model_config)
-    print_model(model)
+    tokenizer = FloorPlanTokenizer()
+
+    model_config = preprocess_model_config(model_config, tokenizer)
+    model = get_model(model_config)
+    
+    print_model_size(model)
     print(model)
 
     # Load dataset

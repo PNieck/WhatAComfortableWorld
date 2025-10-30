@@ -3,9 +3,9 @@ from transformers import GPT2Config, GPT2LMHeadModel
 import tokens
 
 
-def get_gpt2_config(config, tokens_cnt) -> GPT2Config:
+def get_gpt2_config(config) -> GPT2Config:
     return GPT2Config(
-        vocab_size=tokens_cnt,
+        vocab_size=config["vocab_size"],
         n_positions=config["max_seq_len"],
         n_ctx=config["max_seq_len"],
         n_layer=config["n_layer"],
@@ -16,11 +16,9 @@ def get_gpt2_config(config, tokens_cnt) -> GPT2Config:
     )
 
 
-def get_gpt2(config, tokens_cnt):
-    config = get_gpt2_config(config, tokens_cnt)
+def get_gpt2(config):
+    config = get_gpt2_config(config)
 
     model = GPT2LMHeadModel(config)
-
-    model.resize_token_embeddings(tokens_cnt)
 
     return model

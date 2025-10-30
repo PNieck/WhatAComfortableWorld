@@ -1,2 +1,0 @@
-from .floor_plan_tokenizer import FloorPlanTokenizer
-from .tokenizer_with_indices import FloorPlanWithCoordIndicesTokenizer

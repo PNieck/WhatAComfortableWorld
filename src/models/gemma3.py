@@ -1,7 +1,7 @@
 from transformers import AutoConfig, AutoModelForCausalLM
 
 
-def get_gemma3(config, tokens_cnt):
+def get_gemma3(config):
     gemmaConfig = AutoConfig.from_pretrained("google/gemma-3-270m")
 
     if "hidden_size" in config:
@@ -17,7 +17,7 @@ def get_gemma3(config, tokens_cnt):
         gemmaConfig.intermediate_size = config["intermediate_size"]
 
     model = AutoModelForCausalLM.from_config(gemmaConfig, attn_implementation='eager')
-    model.resize_token_embeddings(tokens_cnt)
+    model.resize_token_embeddings(config["vocab_size"])
 
     model.apply(model._init_weights)
 
