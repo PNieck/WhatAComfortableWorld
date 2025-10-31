@@ -4,7 +4,7 @@ general:
 paths:
   input_data: "./data/gpt2_main/input/"
   output_data: "./data/gpt2_main/output/"
-  trained_model: "./models/gpt2_continued_with_coords/"
+  trained_model: "./models/gpt2_with coord_indices/"
 
 preprocessing:
   test_size: 0.05
@@ -18,10 +18,10 @@ preprocessing:
         percentage: 0.4
 
 model:
-  name: "gpt2_main_model"
-  type: "existing"
+  name: "gpt2_with_coord_indices"
+  type: "gpt2"
   with_coord_indices: True
-  input_model_path: "./models/gpt2_with coord_indices/"
+  with_corner_indices: True
   max_seq_len: 320
   n_layer: 12
   n_head: 8
@@ -33,4 +33,4 @@ training:
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
-  log_comment: "_main_gpt2_continue_training_with_coords"
+  log_comment: "_coord_indices_training"

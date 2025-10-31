@@ -5,6 +5,9 @@ def preprocess_model_config(config: dict, tokenizer: PreTrainedTokenizer) -> dic
     if "with_coord_indices" not in config:
         config["with_coord_indices"] = False
 
+    if "with_corner_indices" not in config:
+        config["with_corner_indices"] = False
+
     config["vocab_size"] = len(tokenizer)
 
     return config
