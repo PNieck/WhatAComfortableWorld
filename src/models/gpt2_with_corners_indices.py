@@ -1,10 +1,10 @@
-from .gpt2_with_coord_indices import GPT2ModelWithCoordIndices
+from .gpt2_with_coord_indices import GPT2ModelWithXYIndices
 from transformers import GPT2Config, GPT2LMHeadModel
 import torch.nn as nn
 import torch
 
 
-class GPT2ModelWithCornerIndices(GPT2ModelWithCoordIndices):
+class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
     MAX_CORNERS = 58
 
     def __init__(self, config: GPT2Config):

@@ -5,7 +5,7 @@ from transformers import GPT2LMHeadModel, GPT2Config
 import tokens
 
 
-class GPT2ModelWithCoordIndices(GPT2LMHeadModel):
+class GPT2ModelWithXYIndices(GPT2LMHeadModel):
     """
     This class extends GPT2LMHeadModel to include additional coordinates positional embeddings
     """
