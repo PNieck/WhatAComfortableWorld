@@ -26,24 +26,28 @@ class GPT2ModelWithCoordIndices(GPT2LMHeadModel):
             self,
             input_ids,
             attention_mask=None,
+            xy_indices=None,
             labels=None,
             inputs_embeds=None,
             **kwargs
         ):
 
-        assert inputs_embeds is None
+        if xy_indices is None:
+            coord_indices, mask = self.coord_indices(input_ids)
+            xy_indices = self.xy_indices(coord_indices, mask)
 
-        coord_indices = self.coord_indices(input_ids)
-        #coord_indices.to(input_ids.get_device())
+        index_embeds = self.coord_index_embd(xy_indices)
 
-        index_embeds = self.coord_index_embd(coord_indices)
-        tokens_embeds = self.transformer.wte(input_ids)
+        if inputs_embeds is None:
+            tokens_embeds = self.transformer.wte(input_ids)
+            inputs_embeds = tokens_embeds + index_embeds
 
-        input_embeds = tokens_embeds + index_embeds
+        else:
+            inputs_embeds += index_embeds
 
         # TODO: fix kwargs handing
         result = super().forward(
-            inputs_embeds=input_embeds,
+            inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             labels=labels,
             # **kwargs
@@ -51,41 +55,48 @@ class GPT2ModelWithCoordIndices(GPT2LMHeadModel):
 
         return result
     
+
+    def xy_indices(self, coord_indices: torch.Tensor, coord_mask: torch.Tensor) -> torch.Tensor:
+        with torch.no_grad():
+            coord_indices[coord_mask] = ((coord_indices[coord_mask]-1) % 2) + 1
+
+            return coord_indices
+    
+
     def coord_indices(self, input_ids: torch.Tensor):
-        coord_mask = (input_ids >= self.min_coord_token_id) & (input_ids <= self.max_coord_token_id)
-        neg_mask = ~coord_mask
+        with torch.no_grad():
+            coord_mask = (input_ids >= self.min_coord_token_id) & (input_ids <= self.max_coord_token_id)
+            neg_mask = ~coord_mask
 
-        if coord_mask.dim() == 1:
-            c = torch.cumsum(neg_mask)
-            d = torch.diff(c[neg_mask], 1, -1, torch.tensor([0]))
-            e = coord_mask.type(torch.int)
-            e[neg_mask] = -d
-            result = torch.cumsum(e)
-            result[coord_mask] = ((result[coord_mask]-1) % 2) + 1
+            if coord_mask.dim() == 1:
+                c = torch.cumsum(neg_mask)
+                d = torch.diff(c[neg_mask], 1, -1, torch.tensor([0]))
+                e = coord_mask.type(torch.int)
+                e[neg_mask] = -d
+                result = torch.cumsum(e)
 
-            return result
+                return result
 
-        assert coord_mask.dim() == 2
+            assert coord_mask.dim() == 2
 
-        c = torch.cumsum(coord_mask, 1)
+            c = torch.cumsum(coord_mask, 1)
 
-        batch =  input_ids.shape[0]
-        neg_sum = torch.sum(neg_mask)
-        c_n_len = neg_sum + batch + 1
-        c_n = torch.zeros(c_n_len, dtype=torch.long, device=input_ids.device)
+            batch =  input_ids.shape[0]
+            neg_sum = torch.sum(neg_mask)
+            c_n_len = neg_sum + batch + 1
+            c_n = torch.zeros(c_n_len, dtype=torch.long, device=input_ids.device)
 
-        rows = torch.nonzero(neg_mask)[:, 0]
-        indices = rows + torch.arange(neg_sum, device=input_ids.device) + 1
-        
-        c_n[indices] = c[neg_mask]
-        
-        d = torch.diff(c_n)
+            rows = torch.nonzero(neg_mask)[:, 0]
+            indices = rows + torch.arange(neg_sum, device=input_ids.device) + 1
+            
+            c_n[indices] = c[neg_mask]
+            
+            d = torch.diff(c_n)
 
-        e = coord_mask.type(torch.long)
-        e[neg_mask] = -d[indices-1]
+            e = coord_mask.type(torch.long)
+            e[neg_mask] = -d[indices-1]
 
-        result = torch.cumsum(e, 1)
-        result[coord_mask] = ((result[coord_mask]-1) % 2) + 1
+            result = torch.cumsum(e, 1)
 
-        return result
+            return (result, coord_mask)
 

@@ -8,6 +8,7 @@ import torch.nn as nn
 from .gemma3 import get_gemma3
 from .gpt2 import get_gpt2, get_gpt2_config
 from .gpt2_with_coord_indices import GPT2ModelWithCoordIndices
+from .gpt2_with_corners_indices import GPT2ModelWithCornerIndices
 
 
 def get_model(config) -> nn.Module:
@@ -15,6 +16,10 @@ def get_model(config) -> nn.Module:
         return get_gemma3(config)
     
     elif config["type"] == "gpt2":
+        if config["with_corner_indices"]:
+            gpt2_config = get_gpt2_config(config)
+            return GPT2ModelWithCornerIndices(gpt2_config)
+
         if config["with_coord_indices"]:
             gpt2_config = get_gpt2_config(config)
             return GPT2ModelWithCoordIndices(gpt2_config)
@@ -32,6 +37,9 @@ def get_model(config) -> nn.Module:
     
 
 def get_pretrained_model(path, config) -> PreTrainedModel:
+    if config["with_corner_indices"]:
+        return GPT2ModelWithCornerIndices.from_pretrained(path)
+
     if config["with_coord_indices"]:
         return GPT2ModelWithCoordIndices.from_pretrained(path)
     else:
