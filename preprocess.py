@@ -46,7 +46,7 @@ def data_augmentation(plans, config):
 
 
 
-def preprocess(file: str, plans):
+def save_sequences(file: str, plans):
     os.makedirs(os.path.dirname(file), exist_ok=True)
     with open(file, mode='w+') as file:
         for i, floor_plan in enumerate(plans):
@@ -103,24 +103,29 @@ def main(argv):
     data = data[0:floor_plans_cnt]
     plans = [from_mat_file(plan) for plan in data]
 
-    if "data_augmentation" in prep_config:
-        plans = data_augmentation(plans, prep_config["data_augmentation"])
-
     floor_plans_cnt = len(plans)
 
     validate_cnt = int(floor_plans_cnt * prep_config["validate_size"])
     test_cnt = int(floor_plans_cnt * prep_config["test_size"])
     train_cnt = floor_plans_cnt - validate_cnt - test_cnt
 
+    test_end_idx = test_cnt + train_cnt
+
+    train_plans = plans[0:train_cnt]
+    test_plans = plans[train_cnt: test_end_idx]
+    validate_plans = plans[test_end_idx:floor_plans_cnt]
+
+    if "data_augmentation" in prep_config:
+        train_plans = data_augmentation(train_plans, prep_config["data_augmentation"])
+
     print("Preprocessing train dataset")
-    preprocess(paths_config["input_data"] + "/train.txt", plans[0:train_cnt])
+    save_sequences(paths_config["input_data"] + "/train.txt", train_plans)
 
     print("Preprocessing test dataset")
-    test_end_idx = test_cnt + train_cnt
-    preprocess(paths_config["input_data"] + "/test.txt", plans[train_cnt: test_end_idx])
+    save_sequences(paths_config["input_data"] + "/test.txt", test_plans)
 
     print("Preprocessing validation dataset")
-    preprocess(paths_config["input_data"] + "/validation.txt", plans[test_end_idx:floor_plans_cnt])
+    save_sequences(paths_config["input_data"] + "/validation.txt", validate_plans)
 
 
 if __name__ == "__main__":
