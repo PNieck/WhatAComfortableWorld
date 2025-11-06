@@ -59,6 +59,20 @@ def evaluate(model: nn.Module, test_loader: DataLoader) -> tuple[float, float]:
 
 
 
+def checkpointing(model, config, epoch):
+    if "checkpointing_frequency" not in config:
+        return
+    
+    if epoch % config["checkpointing_frequency"] == 0 and epoch != config["epochs"] and epoch != 0:
+        print("Creating a checkpoint")
+        
+        dir = config["log_dir"]
+        dir += f"checkpoints/epoch_{epoch}/"
+
+        model.save_pretrained(dir)
+
+
+
 def custom_training_loop(model: nn.Module, tokenizer, dataset, config, tb: SummaryWriter):
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
@@ -126,6 +140,9 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, tb: Summa
             step += 1
 
             train_loss = 0
+
+        checkpointing(model, config, epoch)
+
 
     eval_avg_loss, accuracy = evaluate(model, test_dataloader)
     tb.add_scalar("Eval avg loss", eval_avg_loss, step)

@@ -85,6 +85,7 @@ def main():
     tokenized_dataset.set_format("torch")
 
     log_dir = log_dir_name(train_config)
+    train_config["log_dir"] = log_dir
     tb = SummaryWriter(log_dir)
 
     print("Starting training…")
