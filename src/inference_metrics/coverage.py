@@ -4,12 +4,15 @@ from src.floor_plan import FloorPlan
 
 import shapely
 
+import math
+
 
 class CoverageTest:
     def __init__(self):
-        self.total_area = 0
-        self.total_room_occupied_area = 0
-        self.total_area_outside_boundary = 0
+        self.coverage_rate_sum = 0
+        self.overfilling_rate_sum = 0
+
+        self.examples_cnt = 0
         self.correct_floor_plans = 0
 
     def measure(self, floor_plans: List[FloorPlan]):
@@ -25,16 +28,29 @@ class CoverageTest:
             inter_area = intersection.area
             diff_area = difference.area
 
-            self.total_area += boundary_area
-            self.total_room_occupied_area += inter_area
-            self.total_area_outside_boundary += diff_area
+            coverage_rate = inter_area / boundary_area
+            overfilling_rate = diff_area / boundary_area
+
+            self.coverage_rate_sum += coverage_rate
+            self.overfilling_rate_sum += overfilling_rate
+
+            self.examples_cnt += 1
 
             if boundary_area == inter_area and diff_area == 0:
                 self.correct_floor_plans += 1
 
-    
-    def coverage_rate(self) -> float:
-        return self.total_room_occupied_area / self.total_area
-    
-    def area_outside_rate(self) -> float:
-        return self.total_area_outside_boundary / self.total_area
+    def avg_coverage_rate(self):
+        if self.examples_cnt == 0:
+            return math.nan
+        
+        return self.coverage_rate_sum / self.examples_cnt
+
+    def avg_overfilling_rate(self) -> float:
+        if self.examples_cnt == 0:
+            return math.nan
+
+        return self.overfilling_rate_sum / self.examples_cnt
+
+    def add_to_metrics(self, metrics: dict):
+        metrics["Boundary avg coverage rate"] = self.avg_coverage_rate()
+        metrics["Boundary avg overfilling rate"] = self.avg_overfilling_rate()

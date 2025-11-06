@@ -4,6 +4,8 @@ from src.floor_plan import FloorPlan
 from src.sequence import from_sequence
 from src.sequence.parsing_errors import FloorPlanSequenceParsingError
 
+import math
+
 
 class ParsabilityRate:
     def __init__(self):
@@ -37,4 +39,10 @@ class ParsabilityRate:
             self.error_types[error_name] = 1
     
     def rate(self) -> float:
+        if self.examples_cnt == 0:
+            return math.nan
+
         return (self.examples_cnt - self.invalid_seq) / self.examples_cnt
+    
+    def add_to_metrics(self, metrics: dict):
+        metrics["parsability"] = self.rate()

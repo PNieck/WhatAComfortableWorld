@@ -130,8 +130,8 @@ def main():
     print(f"Valid examples {validity_rate.valid_examples}")
 
     print("\n")
-    print(f"Room coverage: {cov_rate.coverage_rate()}")
-    print(f"Outside area rate {cov_rate.area_outside_rate()}")
+    print(f"Room coverage: {cov_rate.avg_coverage_rate}")
+    print(f"Overfill rate {cov_rate.avg_overfilling_rate()}")
     print(f"Fully covered floor plans: {cov_rate.correct_floor_plans}")
 
 

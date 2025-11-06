@@ -1,6 +1,6 @@
 import scipy.io as sio
 
-from datasets import load_dataset
+from datasets import load_dataset, DatasetDict
 
 from enum import IntFlag, auto
 
@@ -14,7 +14,7 @@ class Split(IntFlag):
     TEST = auto()
 
 
-def load_floor_plans_dataset(path: str, splits: Split):
+def load_floor_plans_dataset(path: str, splits: Split = Split.TRAIN | Split.VALID | Split.TEST) -> DatasetDict:
     data_files = {}
 
     if splits & Split.TRAIN:

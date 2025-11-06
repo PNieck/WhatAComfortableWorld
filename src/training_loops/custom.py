@@ -11,11 +11,23 @@ from transformers import (
 
 from torch.utils.tensorboard import SummaryWriter
 
-import tokens
+
+def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
+    preds_made = preds[:, :-1]
+    labels_to_guess = labels[:, 1:]
+
+    mask = labels_to_guess != -100
+    
+    correct = preds_made == labels_to_guess
+
+    correct_guesses_cnt = correct[mask].sum()
+    all_guesses_cnt = mask.sum()
+
+    return (correct_guesses_cnt.item(), all_guesses_cnt.item())
 
 
 
-def evaluate(model: nn.Module, test_loader: DataLoader, device, tb: SummaryWriter, step) -> tuple[float, float]:
+def evaluate(model: nn.Module, test_loader: DataLoader) -> tuple[float, float]:
     total_eval_loss = 0
     correct_preds = 0
     total_preds = 0
@@ -23,7 +35,8 @@ def evaluate(model: nn.Module, test_loader: DataLoader, device, tb: SummaryWrite
     model.eval()
     with torch.no_grad():
         for batch in test_loader:
-            batch = {k: v.to(device) for k, v in batch.items()}
+            if model.device.type != "cpu":
+                batch = {k: v.to(model.device) for k, v in batch.items()}
             
             outputs = model(**batch)
 
@@ -33,23 +46,20 @@ def evaluate(model: nn.Module, test_loader: DataLoader, device, tb: SummaryWrite
             labels = batch["labels"]
 
             preds = torch.argmax(logits, dim=-1)
-            mask = labels != tokens.PAD_TOKEN_ID
-            correct = (preds == labels) & mask
 
-            correct_preds += correct.sum().item()
-            total_preds += mask.sum().item()
+            (correct, preds) = calc_correct_preds(preds, labels)
+
+            correct_preds += correct
+            total_preds += preds
             
     eval_avg_loss = total_eval_loss / len(test_loader)
     accuracy = correct_preds / total_preds
-
-    tb.add_scalar("Eval avg loss", eval_avg_loss, step)
-    tb.add_scalar("Eval accuracy", accuracy, step)
 
     return (eval_avg_loss, accuracy)
 
 
 
-def custom_training_loop(model: nn.Module, tokenizer, dataset, config):
+def custom_training_loop(model: nn.Module, tokenizer, dataset, config, tb: SummaryWriter):
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     train_dataloader = DataLoader(
@@ -76,8 +86,6 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config):
 
     progress_bar = tqdm(range(num_training_steps))
 
-    tb = SummaryWriter(comment=config["log_comment"])
-
     eval_steps = config["eval_steps"]
 
     train_loss = 0
@@ -86,7 +94,9 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config):
     model.train()
     for epoch in range(num_epochs):
         for batch in train_dataloader:
-            batch = {k: v.to(device) for k, v in batch.items()}
+            if device.type != "cpu":
+                batch = {k: v.to(device) for k, v in batch.items()}
+
             outputs = model(**batch)
             loss = outputs.loss
             train_loss += loss.item()
@@ -102,8 +112,12 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config):
                 train_avg_loss = train_loss / eval_steps
                 tb.add_scalar("Train avg loss", train_avg_loss, step)
 
-                eval_avg_loss, accuracy = evaluate(model, test_dataloader, device, tb, step)
+                eval_avg_loss, accuracy = evaluate(model, test_dataloader)
                 model.train()
+
+                tb.add_scalar("Eval avg loss", eval_avg_loss, step)
+                tb.add_scalar("Eval accuracy", accuracy, step)
+                tb.add_scalar("lr", lr_scheduler.get_last_lr()[0], step)
 
                 print(f"Epoch: {epoch}/{num_epochs}, step: {step}/{num_training_steps}")
                 print(f"\tAvg train loss: {train_avg_loss:.5f}, Avg eval loss: {eval_avg_loss:.5f}, eval_accuracy: {accuracy:.5f}")
@@ -113,4 +127,6 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config):
 
             train_loss = 0
 
-    evaluate(model, test_dataloader, device, tb, step)
+    eval_avg_loss, accuracy = evaluate(model, test_dataloader)
+    tb.add_scalar("Eval avg loss", eval_avg_loss, step)
+    tb.add_scalar("Eval accuracy", accuracy, step)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+import datetime
 import yaml
 try:
     from yaml import CLoader as Loader
@@ -17,9 +18,21 @@ from src.models import (
     preprocess_model_config
 )
 
+from torch.utils.tensorboard import SummaryWriter
+
 from src.train_loop import train
 from src.dataset_loader import load_floor_plans_dataset, Split
 from src.floor_plan_tokenizer import FloorPlanTokenizer
+from src.validation import validate
+
+
+def log_dir_name(config: dict) -> str:
+    result = "runs/" + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+
+    if "log_comment" in config:
+        result += config["log_comment"] + "/"
+
+    return result
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
@@ -71,11 +84,18 @@ def main():
     )
     tokenized_dataset.set_format("torch")
 
+    log_dir = log_dir_name(train_config)
+    tb = SummaryWriter(log_dir)
+
     print("Starting training…")
-    train(model, tokenizer, tokenized_dataset, train_config)
+    train(model, tokenizer, tokenized_dataset, train_config, tb)
+
+    print("Validating model…")
+    dataset = load_floor_plans_dataset(paths_config["input_data"], Split.VALID)
+    validate(model, tokenizer, dataset, train_config, model_config, tb)
 
     print("Saving model")
-    model.save_pretrained(paths_config["trained_model"])
+    model.save_pretrained(log_dir + "model/")
 
     print(f"\nAll done.")
 
