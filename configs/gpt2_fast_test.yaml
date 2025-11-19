@@ -3,13 +3,11 @@ general:
 
 paths:
   input_data: "./data/gpt2_fast_test/input"
-  output_data: "./data/gpt2_fast_test/output"
-  trained_model: "./models/gpt2_fast_test/"
 
 preprocessing:
   test_size: 0.1
   validate_size: 0.1
-  max_floor_plans: 1000
+  max_floor_plans: 100
   data_augmentation:
     - permutation:
         percentage: 0.4
