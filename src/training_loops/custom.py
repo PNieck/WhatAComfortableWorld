@@ -1,3 +1,5 @@
+import json
+
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
@@ -9,7 +11,7 @@ from transformers import (
     get_scheduler
 )
 
-from torch.utils.tensorboard import SummaryWriter
+from src.log_writer import LogWriter
 
 
 def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
@@ -58,8 +60,7 @@ def evaluate(model: nn.Module, test_loader: DataLoader) -> tuple[float, float]:
     return (eval_avg_loss, accuracy)
 
 
-
-def checkpointing(model, config, epoch):
+def checkpointing(model, config, epoch, step, log_writer: LogWriter):
     if "checkpointing_frequency" not in config:
         return
     
@@ -67,13 +68,14 @@ def checkpointing(model, config, epoch):
         print("Creating a checkpoint")
         
         dir = config["log_dir"]
-        dir += f"checkpoints/epoch_{epoch}/"
+        dir += f"checkpoints/epoch_{epoch + log_writer.start_epoch}/"
 
         model.save_pretrained(dir)
 
+        log_writer.save_training_status(step, epoch, dir)
 
 
-def custom_training_loop(model: nn.Module, tokenizer, dataset, config, tb: SummaryWriter):
+def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_writer: LogWriter):
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     train_dataloader = DataLoader(
@@ -124,14 +126,14 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, tb: Summa
 
             if step % eval_steps == 0:
                 train_avg_loss = train_loss / eval_steps
-                tb.add_scalar("Train avg loss", train_avg_loss, step)
+                log_writer.add_scalar("Train avg loss", train_avg_loss, step)
 
                 eval_avg_loss, accuracy = evaluate(model, test_dataloader)
                 model.train()
 
-                tb.add_scalar("Eval avg loss", eval_avg_loss, step)
-                tb.add_scalar("Eval accuracy", accuracy, step)
-                tb.add_scalar("lr", lr_scheduler.get_last_lr()[0], step)
+                log_writer.add_scalar("Eval avg loss", eval_avg_loss, step)
+                log_writer.add_scalar("Eval accuracy", accuracy, step)
+                log_writer.add_scalar("lr", lr_scheduler.get_last_lr()[0], step)
 
                 print(f"Epoch: {epoch}/{num_epochs}, step: {step}/{num_training_steps}")
                 print(f"\tAvg train loss: {train_avg_loss:.5f}, Avg eval loss: {eval_avg_loss:.5f}, eval_accuracy: {accuracy:.5f}")
@@ -141,9 +143,10 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, tb: Summa
 
             train_loss = 0
 
-        checkpointing(model, config, epoch)
+        checkpointing(model, config, epoch, step, log_writer)
 
 
     eval_avg_loss, accuracy = evaluate(model, test_dataloader)
-    tb.add_scalar("Eval avg loss", eval_avg_loss, step)
-    tb.add_scalar("Eval accuracy", accuracy, step)
+    log_writer.add_scalar("Eval avg loss", eval_avg_loss, step)
+    log_writer.add_scalar("Eval accuracy", accuracy, step)
+    log_writer.save_training_status(step, epoch)

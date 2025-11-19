@@ -55,7 +55,7 @@ def main():
 
     tokenizer = FloorPlanTokenizer()
     model_config = preprocess_model_config(model_config, tokenizer)
-    model = get_pretrained_model(paths_config["trained_model"], model_config)
+    model = get_pretrained_model(paths_config["trained_model"])
     print_model_size(model)
     print(model)
 
@@ -100,7 +100,7 @@ def main():
                 max_new_tokens=300,
                 do_sample=False,
                 eos_token_id=tokens.END_SEQ_TOKEN_ID,
-                use_cache=False
+                #use_cache=False
             )
 
         results = tokenizer.batch_decode(outputs, skip_special_tokens=True)
@@ -130,7 +130,7 @@ def main():
     print(f"Valid examples {validity_rate.valid_examples}")
 
     print("\n")
-    print(f"Room coverage: {cov_rate.avg_coverage_rate}")
+    print(f"Room coverage: {cov_rate.avg_coverage_rate()}")
     print(f"Overfill rate {cov_rate.avg_overfilling_rate()}")
     print(f"Fully covered floor plans: {cov_rate.correct_floor_plans}")
 

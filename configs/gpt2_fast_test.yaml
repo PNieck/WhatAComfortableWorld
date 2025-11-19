@@ -21,7 +21,7 @@ preprocessing:
 model:
   name: "fast_test_model_gpt2"
   type: "gpt2"
-  with_coord_indices: True
+  with_xy_indices: True
   max_seq_len: 320
   n_layer: 12
   n_head: 8
@@ -33,4 +33,5 @@ training:
   lr: 1e-6
   batch_size: 32
   eval_steps: 2
-  log_comment: "_Fast_test_training"
+  checkpointing_frequency: 4  # checkpoint every n epochs
+  log_comment: "_fast_test_training"

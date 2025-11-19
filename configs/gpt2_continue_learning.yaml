@@ -18,14 +18,8 @@ preprocessing:
         percentage: 0.4
 
 model:
-  name: "gpt2_main_model"
-  type: "existing"
-  with_coord_indices: True
-  input_model_path: "./models/gpt2_with coord_indices/"
+  input_model_path: "2025-11-19-01:43:50_fast_test_training"
   max_seq_len: 320
-  n_layer: 12
-  n_head: 8
-  n_embd: 256
 
 training:
   loop_type: "custom"

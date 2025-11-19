@@ -5,9 +5,9 @@ from transformers import PreTrainedModel
 from datasets import DatasetDict
 
 import torch
-from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 
+from src.log_writer import LogWriter
 from src.inference_metrics import (
     ParsabilityRate,
     CoverageTest,
@@ -32,7 +32,7 @@ def validate(
         tokenizer, dataset: DatasetDict,
         training_config: dict,
         model_config: dict,
-        tb: SummaryWriter
+        log_writer: LogWriter
     ):
     model.eval()
 
@@ -69,7 +69,7 @@ def validate(
             # Greedy decoding
             outputs = model.generate(
                 **inputs,
-                max_new_tokens=300,
+                max_length = model_config["max_seq_len"],
                 do_sample=False,
                 eos_token_id=tokens.END_SEQ_TOKEN_ID,
                 pad_token_id=tokens.PAD_TOKEN_ID,
@@ -93,9 +93,9 @@ def validate(
     hparams = training_config.copy()
     hparams = hparams | model_config
 
-    hparams.pop("eval_steps")
-    hparams.pop("log_comment")
-    hparams.pop("name")
+    hparams.pop("eval_steps", None)
+    hparams.pop("log_comment", None)
+    hparams.pop("name", None)
 
     metrics = {}
 
@@ -103,4 +103,4 @@ def validate(
     validity_rate.add_to_metrics(metrics)
     cov_rate.add_to_metrics(metrics)
 
-    tb.add_hparams(hparams, metrics)
+    log_writer.add_hparams(hparams, metrics)

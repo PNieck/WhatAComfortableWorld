@@ -1,3 +1,5 @@
+import json
+
 from transformers import (
     AutoModelForCausalLM,
     PreTrainedModel
@@ -12,6 +14,9 @@ from .gpt2_with_corners_indices import GPT2ModelWithCornerIndices
 
 
 def get_model(config) -> nn.Module:
+    if "input_model_path" in config:
+        return get_pretrained_model(config["input_model_path"])
+
     if config["type"] == "gemma3":
         return get_gemma3(config)
     
@@ -20,28 +25,28 @@ def get_model(config) -> nn.Module:
             gpt2_config = get_gpt2_config(config)
             return GPT2ModelWithCornerIndices(gpt2_config)
 
-        if config["with_coord_indices"]:
+        if config["with_xy_indices"]:
             gpt2_config = get_gpt2_config(config)
             return GPT2ModelWithXYIndices(gpt2_config)
         
         return get_gpt2(config)
     
-    elif config["type"] == "existing":
-        if config["with_coord_indices"]:
-            return GPT2ModelWithXYIndices.from_pretrained(config["input_model_path"])
-        
-        return AutoModelForCausalLM.from_pretrained(config["input_model_path"])
-    
     else:
         raise ValueError("Invalid model type")
     
 
-def get_pretrained_model(path, config) -> PreTrainedModel:
-    if config["with_corner_indices"]:
-        return GPT2ModelWithCornerIndices.from_pretrained(path)
+def get_pretrained_model(path) -> PreTrainedModel:
+    path = "runs/" + path + "/model/"
 
-    if config["with_coord_indices"]:
+    with open(path + "config.json", "r") as file:
+        data = json.load(file)
+        
+    architecture = data["architectures"][0]
+
+    if architecture == "GPT2ModelWithXYIndices":
         return GPT2ModelWithXYIndices.from_pretrained(path)
+    elif architecture == "GPT2ModelWithCornerIndices":
+        return GPT2ModelWithCornerIndices.from_pretrained(path)
     else:
         return AutoModelForCausalLM.from_pretrained(path)
     
