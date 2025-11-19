@@ -2,6 +2,8 @@ from typing import List
 
 from src.floor_plan import FloorPlan
 
+import math
+
 
 class GeomValidityRate:
     def __init__(self):
@@ -30,5 +32,11 @@ class GeomValidityRate:
         return result
     
     def rate(self) -> float:
+        if self.examples_cnt == 0:
+            return math.nan
+
         return self.valid_examples / self.examples_cnt
+    
+    def add_to_metrics(self, metrics: dict):
+        metrics["geometric validity"] = self.rate()
 

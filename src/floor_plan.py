@@ -6,6 +6,9 @@ import numpy as np
 from shapely import Polygon
 
 
+_SCALE_FACTOR = 18/256
+
+
 class RoomType(Enum):
     LivingRoom = 0
     MasterRoom = 1
@@ -29,14 +32,14 @@ class Room:
     
     @property
     def area(self) -> float:
-        return Polygon(self.boundary).area
+        return self.boundary_polygon().area
 
     def __init__(self, type: RoomType, boundary):
         self.type = type
         self.boundary = boundary
 
     def boundary_polygon(self) -> Polygon:
-        return Polygon(self.boundary)
+        return Polygon(self.boundary * _SCALE_FACTOR)
 
 
 class FrontDoor:
@@ -99,7 +102,7 @@ class FloorPlan:
         self.rooms: List[Room] = rooms
 
     def polygon(self) -> Polygon:
-        return Polygon(self.boundary)
+        return Polygon(self.boundary * _SCALE_FACTOR)
     
     def rooms_polygons(self) -> List[Polygon]:
         return [room.boundary_polygon() for room in self.rooms]

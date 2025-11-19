@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+import datetime
 import yaml
 try:
     from yaml import CLoader as Loader
@@ -20,6 +21,26 @@ from src.models import (
 from src.train_loop import train
 from src.dataset_loader import load_floor_plans_dataset, Split
 from src.floor_plan_tokenizer import FloorPlanTokenizer
+from src.validation import validate
+from src.log_writer import LogWriter
+
+
+def log_dir_name(training_config: dict, model_config: dict) -> str:
+    dir_prefix = "runs/"
+    
+    if "input_model_path" in model_config:
+        result = dir_prefix + model_config["input_model_path"]
+        if not result.endswith("/"):
+            result += "/"
+        
+        return result
+
+    result = dir_prefix + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+
+    if "log_comment" in training_config:
+        result += training_config["log_comment"] + "/"
+
+    return result
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
@@ -71,11 +92,18 @@ def main():
     )
     tokenized_dataset.set_format("torch")
 
-    print("Starting training…")
-    train(model, tokenizer, tokenized_dataset, train_config)
+    log_dir = log_dir_name(train_config, model_config)
+    train_config["log_dir"] = log_dir
+    log_writer = LogWriter(log_dir)
 
+    print("Starting training…")
+    train(model, tokenizer, tokenized_dataset, train_config, log_writer)
+
+    print("Validating model…")
+    dataset = load_floor_plans_dataset(paths_config["input_data"], Split.VALID)
+    validate(model, tokenizer, dataset, train_config, model_config, log_writer)
     print("Saving model")
-    model.save_pretrained(paths_config["trained_model"])
+    model.save_pretrained(log_dir + "model/")
 
     print(f"\nAll done.")
 

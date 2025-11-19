@@ -4,8 +4,8 @@ from src.training_loops.custom import custom_training_loop
 from src.training_loops.transformers import transformers_training_loop
 
 
-def train(model: nn.Module, tokenizer, dataset, config):
+def train(model: nn.Module, tokenizer, dataset, config, tb):
     if config["loop_type"] == "custom":
-        custom_training_loop(model, tokenizer, dataset, config)
+        custom_training_loop(model, tokenizer, dataset, config, tb)
     elif config["loop_type"] == "transformers":
         transformers_training_loop(model, tokenizer, dataset, config)
