@@ -49,6 +49,7 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
             xy_indices=xy_indices
         )
 
+
     def corner_indices(self, coord_indices: torch.Tensor, coord_mask: torch.Tensor):
         with torch.no_grad():
             dtype = coord_indices.dtype

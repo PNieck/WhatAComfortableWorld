@@ -63,7 +63,8 @@ class Generator:
                     eos_token_id=tokens.END_SEQ_TOKEN_ID,
                     pad_token_id=tokens.PAD_TOKEN_ID,
                     bos_token_id=tokens.START_SEQ_TOKEN_ID,
-                    num_beams=1
+                    num_beams=1,
+                    use_cache=False
                 )
 
             generated_sequences = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
