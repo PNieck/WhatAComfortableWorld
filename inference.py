@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from src.floor_plan_tokenizer import FloorPlanTokenizer
+from src.generation import generate
 from src.drawing import draw_floor_plan
 from src.dataset_loader import load_floor_plans_dataset, Split
 from src.models import (
@@ -27,14 +28,14 @@ from src.inference_metrics import (
 import tokens
 
 
-def prepare_prompt(seq: str) -> str:
-    match = re.search(r"<Room \d+>", seq)
-    if not match:
-        raise ValueError("No rooms in sequence")
+# def prepare_prompt(seq: str) -> str:
+#     match = re.search(r"<Room \d+>", seq)
+#     if not match:
+#         raise ValueError("No rooms in sequence")
 
-    start = match.start()
+#     start = match.start()
     
-    return { "text": seq[:start] }
+#     return { "text": seq[:start] }
 
 
 def main():
@@ -64,59 +65,65 @@ def main():
     model.eval()
 
     dataset = load_floor_plans_dataset(paths_config["input_data"], Split.VALID)
-    prompts = dataset.map(
-        lambda ex: prepare_prompt(ex["text"]),
-        batched=False,
-    )
+    # prompts = dataset.map(
+    #     lambda ex: prepare_prompt(ex["text"]),
+    #     batched=False,
+    # )
     
-    data_loader = DataLoader(prompts["valid"]["text"], batch_size=32)
+    # data_loader = DataLoader(prompts["valid"]["text"], batch_size=32)
 
     pars_rate = ParsabilityRate()
     validity_rate = GeomValidityRate()
     cov_rate = CoverageTest()
 
-    for batch in data_loader:
-        inputs = tokenizer(
-            batch,
-            return_tensors="pt",
-            padding=True,
-            truncation=False,
-            padding_side="left",
-            return_token_type_ids=False
-        )
+    # for batch in data_loader:
+    #     inputs = tokenizer(
+    #         batch,
+    #         return_tensors="pt",
+    #         padding=True,
+    #         truncation=False,
+    #         padding_side="left",
+    #         return_token_type_ids=False
+    #     )
 
-        if device.type != "cpu":
-            inputs = {k: v.to(device) for k, v in inputs.items()}
+    #     if device.type != "cpu":
+    #         inputs = {k: v.to(device) for k, v in inputs.items()}
 
-        # Remove EOS tokens from the end
-        for k, v in inputs.items():
-            inputs[k] = v[:, 0:-1]
+    #     # Remove EOS tokens from the end
+    #     for k, v in inputs.items():
+    #         inputs[k] = v[:, 0:-1]
 
-        with torch.no_grad():
+    #     with torch.no_grad():
 
-            # Greedy decoding
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=300,
-                do_sample=False,
-                eos_token_id=tokens.END_SEQ_TOKEN_ID,
-                #use_cache=False
-            )
+    #         # Greedy decoding
+    #         outputs = model.generate(
+    #             **inputs,
+    #             max_new_tokens=300,
+    #             do_sample=False,
+    #             eos_token_id=tokens.END_SEQ_TOKEN_ID,
+    #             #use_cache=False
+    #         )
 
-        results = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+    #     results = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
-        floor_plans = pars_rate.parse(results)
-        if not floor_plans:
-            continue
+    #     floor_plans = pars_rate.parse(results)
+    #     if not floor_plans:
+    #         continue
 
-        floor_plans = validity_rate.filter_out_invalid(floor_plans)
-        if not floor_plans:
-            continue
+    #     floor_plans = validity_rate.filter_out_invalid(floor_plans)
+    #     if not floor_plans:
+    #         continue
 
-        # for plan in floor_plans:
-        #     draw_floor_plan(plan)
+    #     for plan in floor_plans:
+    #         draw_floor_plan(plan)
 
-        cov_rate.measure(floor_plans)
+    #     cov_rate.measure(floor_plans)
+
+    sequences = generate(model, tokenizer, dataset)
+
+    floor_plans = pars_rate.parse(sequences)
+    floor_plans = validity_rate.filter_out_invalid(floor_plans)
+    cov_rate.measure(floor_plans)
 
     print(f"Parsability: {pars_rate.rate()}")
     print(f"Examples {pars_rate.examples_cnt}")

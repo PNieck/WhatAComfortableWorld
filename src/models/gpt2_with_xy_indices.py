@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
-from transformers import GPT2LMHeadModel, GPT2Config
+from transformers import GPT2Config
+from .gpt2 import CustomGPT2
 
 import tokens
 
 
-class GPT2ModelWithXYIndices(GPT2LMHeadModel):
+class GPT2ModelWithXYIndices(CustomGPT2):
     """
     This class extends GPT2LMHeadModel to include additional coordinates positional embeddings
     """

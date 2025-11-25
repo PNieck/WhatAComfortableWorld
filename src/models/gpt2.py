@@ -3,6 +3,13 @@ from transformers import GPT2Config, GPT2LMHeadModel
 import tokens
 
 
+class CustomGPT2(GPT2LMHeadModel):  
+    def __init__(self, config: GPT2Config):
+        self.max_seq_len = config.n_embd
+
+        super().__init__(config)
+
+
 def get_gpt2_config(config) -> GPT2Config:
     return GPT2Config(
         vocab_size=config["vocab_size"],
@@ -19,6 +26,6 @@ def get_gpt2_config(config) -> GPT2Config:
 def get_gpt2(config):
     config = get_gpt2_config(config)
 
-    model = GPT2LMHeadModel(config)
+    model = CustomGPT2(config)
 
     return model

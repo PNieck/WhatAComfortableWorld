@@ -3,6 +3,7 @@ general:
 
 paths:
   input_data: "./data/input"
+  trained_model: "2025-11-19-16:52:05_main_gpt2_25_layers_training"
 
 preprocessing:
   test_size: 0.05
@@ -19,6 +20,8 @@ model:
   name: "main_model"
   type: "gpt2"
   max_seq_len: 320
+  with_xy_indices: True
+  with_corner_indices: True
 
 training:
   loop_type: "custom"

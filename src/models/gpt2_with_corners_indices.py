@@ -1,4 +1,4 @@
-from .gpt2_with_coord_indices import GPT2ModelWithXYIndices
+from .gpt2_with_xy_indices import GPT2ModelWithXYIndices
 from transformers import GPT2Config, GPT2LMHeadModel
 import torch.nn as nn
 import torch
