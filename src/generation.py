@@ -9,62 +9,63 @@ from torch.utils.data import DataLoader
 import tokens
 
 
-def _prepare_prompt(seq: str) -> str:
-    match = re.search(r"<Room \d+>", seq)
-    if not match:
-        raise ValueError("No rooms in sequence")
+class Generator:
+    def __init__(self, model: PreTrainedModel, tokenizer, dataset: DatasetDict, batch_size: int =32):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.dataset = dataset
+        self.batch_size = batch_size
 
-    start = match.start()
-    
-    return { "text": seq[:start] }
+    def _prepare_prompt(self, seq: str) -> str:
+        match = re.search(r"<Room \d+>", seq)
+        if not match:
+            raise ValueError("No rooms in sequence")
+
+        start = match.start()
+        
+        return { "text": seq[:start] }
 
 
-def generate(model: PreTrainedModel, tokenizer, dataset: DatasetDict):
-    model.eval()
+    def generate_in_batches(self):
+        self.model.eval()
 
-    prompts = dataset.map(
-        lambda ex: _prepare_prompt(ex["text"]),
-        batched=False,
-    )
-
-    data_loader = DataLoader(prompts["valid"]["text"], batch_size=32)
-
-    generated_sequences = []
-
-    for batch in data_loader:
-        inputs = tokenizer(
-            batch,
-            return_tensors="pt",
-            padding=True,
-            truncation=False,
-            padding_side="left",
-            return_token_type_ids=False
+        prompts = self.dataset.map(
+            lambda ex: self._prepare_prompt(ex["text"]),
+            batched=False,
         )
 
-        # Remove EOS tokens from the end
-        for k, v in inputs.items():
-            inputs[k] = v[:, 0:-1]
+        data_loader = DataLoader(prompts["valid"]["text"], batch_size=self.batch_size)
 
-        if model.device.type != "cpu":
-            inputs = {k: v.to(model.device) for k, v in inputs.items()}
-    
-        with torch.no_grad():
-
-            # Greedy decoding
-            outputs = model.generate(
-                **inputs,
-                max_length = model.max_seq_len,
-                do_sample=False,
-                eos_token_id=tokens.END_SEQ_TOKEN_ID,
-                pad_token_id=tokens.PAD_TOKEN_ID,
-                bos_token_id=tokens.START_SEQ_TOKEN_ID,
-                use_cache=False,
-                num_beams=1
+        for batch in data_loader:
+            inputs = self.tokenizer(
+                batch,
+                return_tensors="pt",
+                padding=True,
+                truncation=False,
+                padding_side="left",
+                return_token_type_ids=False
             )
 
-        generated_sequences += tokenizer.batch_decode(outputs, skip_special_tokens=True)
-        print(f"Generated {len(generated_sequences)} sequences")
+            # Remove EOS tokens from the end
+            for k, v in inputs.items():
+                inputs[k] = v[:, 0:-1]
 
-    return generated_sequences
+            if self.model.device.type != "cpu":
+                inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
+        
+            with torch.no_grad():
 
+                # Greedy decoding
+                outputs = self.model.generate(
+                    **inputs,
+                    max_length = self.model.max_seq_len,
+                    do_sample=False,
+                    eos_token_id=tokens.END_SEQ_TOKEN_ID,
+                    pad_token_id=tokens.PAD_TOKEN_ID,
+                    bos_token_id=tokens.START_SEQ_TOKEN_ID,
+                    num_beams=1
+                )
 
+            generated_sequences = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+            
+            yield generated_sequences
