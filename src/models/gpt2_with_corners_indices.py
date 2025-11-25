@@ -11,6 +11,8 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
         super().__init__(config)
 
         self.corner_embd = nn.Embedding(self.MAX_CORNERS+1, config.n_embd)
+        self._last_corner_indices = None
+        self._second_to_last_corner_indices = None
 
         self.post_init()
 
@@ -22,31 +24,41 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
             corner_indices=None,
             labels=None,
             inputs_embeds=None,
+            use_cache=None,
             **kwargs
         ):
 
         assert inputs_embeds is None
 
         if corner_indices is None:
-            coord_indices, mask = self.coord_indices(input_ids)
+            if use_cache is True and self._last_corner_indices is not None:
+                corner_indices = self.corner_indices_from_cache(input_ids)
+                xy_indices = None
 
-            corner_indices = coord_indices.clone()
-            corner_indices = self.corner_indices(corner_indices, mask)
+            else:
+                coord_indices, coord_mask = self.coord_indices(input_ids)
 
-            xy_indices = self.xy_indices(coord_indices, mask)
+                corner_indices = coord_indices.clone()
+                corner_indices = self.corner_indices(corner_indices, coord_mask)
+
+                xy_indices = self.xy_indices(coord_indices, coord_mask)
         else:
             xy_indices = None
 
         inputs_embeds = self.transformer.wte(input_ids)
         inputs_embeds += self.corner_embd(corner_indices)
 
-        # TODO: fix kwargs handing
+        if use_cache is True:
+            self.update_cache(corner_indices)
+
         return super().forward(
             input_ids=input_ids,
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             labels=labels,
-            xy_indices=xy_indices
+            xy_indices=xy_indices,
+            use_cache=use_cache,
+            **kwargs
         )
 
 
@@ -56,4 +68,35 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
             coord_indices[coord_mask] = torch.ceil(coord_indices[coord_mask] / 2).type(dtype)
 
             return coord_indices
+        
+
+    def corner_indices_from_cache(self, input_ids: torch.Tensor) -> torch.Tensor:
+        assert input_ids.shape[1] == 1, "Invalid input shape for cached corner indices"
+
+        coord_mask = self.coord_mask(input_ids).squeeze()
+        corner_indices = torch.zeros(input_ids.shape[0], dtype=input_ids.dtype, device=input_ids.device)
+
+        # First corner
+        first_corner_mask = coord_mask & (self._last_corner_indices == 0)
+        corner_indices[first_corner_mask] = 1
+
+        last_two_same_corner_mask = self._last_corner_indices == self._second_to_last_corner_indices
+
+        # Next corner
+        next_corner_mask = last_two_same_corner_mask & (~first_corner_mask) & coord_mask
+        corner_indices[next_corner_mask] = self._last_corner_indices[next_corner_mask] + 1
+
+        # Same corner as last time
+        same_corner_mask = (~last_two_same_corner_mask) & (~first_corner_mask) & coord_mask
+        corner_indices[same_corner_mask] = self._last_corner_indices[same_corner_mask]
+
+        return corner_indices.unsqueeze(1)
+    
+    def update_cache(self, corner_indices: torch.Tensor):
+        if corner_indices.shape[1] >= 2:
+            self._last_corner_indices = corner_indices[:, -1]
+            self._second_to_last_corner_indices = corner_indices[:, -2]
+        else:
+            self._second_to_last_corner_indices = self._last_corner_indices
+            self._last_corner_indices = corner_indices[:, -1]
 
