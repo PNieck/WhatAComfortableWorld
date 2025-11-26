@@ -106,6 +106,10 @@ def main():
     print(f"Floor plans with no overlapping rooms: {room_overlap_rate.correct_floor_plans}/{room_overlap_rate.examples_cnt}")
 
     print("\n")
+    print(f"Rooms avg overlapping rate: {room_overlap_rate.avg_overlapping_rate()}")
+    print(f"Floor plans with no overlapping rooms: {room_overlap_rate.correct_floor_plans}/{room_overlap_rate.examples_cnt}")
+
+    print("\n")
     print(f"Required rooms rate: {required_rooms.correctness_rate()}")
     print(f"Floor plans with all required rooms: {required_rooms.correct_floor_plans}/{required_rooms.examples_cnt}")
     required_rooms.print_missing_rooms()
