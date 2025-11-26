@@ -13,6 +13,17 @@ from src.log_writer import LogWriter
 from src.losses import get_loss
 
 
+def calculate_loss(output, labels):
+    logits = output.logits
+    shift_logits = logits[:, :-1, :].contiguous()
+    shift_labels = labels[:, 1:].contiguous()
+
+    loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
+    loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+    return loss
+
+
 def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
     preds_made = preds[:, :-1]
     labels_to_guess = labels[:, 1:]
