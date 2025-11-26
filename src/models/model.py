@@ -9,7 +9,7 @@ import torch.nn as nn
 
 from .gemma3 import get_gemma3
 from .gpt2 import get_gpt2, get_gpt2_config
-from .gpt2_with_coord_indices import GPT2ModelWithXYIndices
+from .gpt2_with_xy_indices import GPT2ModelWithXYIndices
 from .gpt2_with_corners_indices import GPT2ModelWithCornerIndices
 
 

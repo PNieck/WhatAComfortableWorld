@@ -2,8 +2,7 @@ general:
   seed: 42
 
 paths:
-  input_data: "./data/input"
-  trained_model: "2025-11-19-16:52:05_main_gpt2_25_layers_training"
+  input_data: "./data/gpt2_main/input/"
 
 preprocessing:
   test_size: 0.05
@@ -17,17 +16,18 @@ preprocessing:
         percentage: 0.4
 
 model:
-  name: "main_model"
+  name: "gpt2_with_xy_indices"
   type: "gpt2"
+  with_coord_indices: True
   max_seq_len: 320
-  with_xy_indices: True
-  with_corner_indices: True
+  n_layer: 12
+  n_head: 8
+  n_embd: 256
 
 training:
   loop_type: "custom"
-  epochs: 150
+  epochs: 60
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
-  log_comment: "_main_training"
-
+  log_comment: "_xy_indices_training"

@@ -1,5 +1,4 @@
 import argparse
-import re
 import yaml
 try:
     from yaml import CLoader as Loader
@@ -7,9 +6,9 @@ except ImportError:
     from yaml import Loader
 
 import torch
-from torch.utils.data import DataLoader
 
 from src.floor_plan_tokenizer import FloorPlanTokenizer
+from src.generation import Generator
 from src.drawing import draw_floor_plan
 from src.dataset_loader import load_floor_plans_dataset, Split
 from src.models import (
@@ -23,18 +22,6 @@ from src.inference_metrics import (
     CoverageTest,
     GeomValidityRate
 )
-
-import tokens
-
-
-def prepare_prompt(seq: str) -> str:
-    match = re.search(r"<Room \d+>", seq)
-    if not match:
-        raise ValueError("No rooms in sequence")
-
-    start = match.start()
-    
-    return { "text": seq[:start] }
 
 
 def main():
@@ -60,63 +47,28 @@ def main():
     print(model)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f'Using device: {device}')
     model.to(device)
     model.eval()
 
     dataset = load_floor_plans_dataset(paths_config["input_data"], Split.VALID)
-    prompts = dataset.map(
-        lambda ex: prepare_prompt(ex["text"]),
-        batched=False,
-    )
-    
-    data_loader = DataLoader(prompts["valid"]["text"], batch_size=32)
 
     pars_rate = ParsabilityRate()
     validity_rate = GeomValidityRate()
     cov_rate = CoverageTest()
 
-    for batch in data_loader:
-        inputs = tokenizer(
-            batch,
-            return_tensors="pt",
-            padding=True,
-            truncation=False,
-            padding_side="left",
-            return_token_type_ids=False
-        )
+    generator = Generator(model, tokenizer, dataset)
 
-        if device.type != "cpu":
-            inputs = {k: v.to(device) for k, v in inputs.items()}
+    done = 0
+    total = len(dataset["valid"])
 
-        # Remove EOS tokens from the end
-        for k, v in inputs.items():
-            inputs[k] = v[:, 0:-1]
-
-        with torch.no_grad():
-
-            # Greedy decoding
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=300,
-                do_sample=False,
-                eos_token_id=tokens.END_SEQ_TOKEN_ID,
-                #use_cache=False
-            )
-
-        results = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-
-        floor_plans = pars_rate.parse(results)
-        if not floor_plans:
-            continue
-
+    for batch in generator.generate_in_batches():
+        floor_plans = pars_rate.parse(batch)
         floor_plans = validity_rate.filter_out_invalid(floor_plans)
-        if not floor_plans:
-            continue
-
-        # for plan in floor_plans:
-        #     draw_floor_plan(plan)
-
         cov_rate.measure(floor_plans)
+
+        done += len(batch)
+        print(f"Done {done}/{total}")
 
     print(f"Parsability: {pars_rate.rate()}")
     print(f"Examples {pars_rate.examples_cnt}")
