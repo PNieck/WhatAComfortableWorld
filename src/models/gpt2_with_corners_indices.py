@@ -31,7 +31,7 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
         assert inputs_embeds is None
 
         if corner_indices is None:
-            if use_cache is True and self._last_corner_indices is not None:
+            if use_cache is True:
                 corner_indices = self.corner_indices_from_cache(input_ids)
                 xy_indices = None
 
@@ -49,7 +49,7 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
         inputs_embeds += self.corner_embd(corner_indices)
 
         if use_cache is True:
-            self.update_cache(corner_indices)
+            self.update_corner_indices_cache(corner_indices)
 
         return super().forward(
             input_ids=input_ids,
@@ -71,7 +71,9 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
         
 
     def corner_indices_from_cache(self, input_ids: torch.Tensor) -> torch.Tensor:
-        assert input_ids.shape[1] == 1, "Invalid input shape for cached corner indices"
+        if input_ids.shape[1] > 1:
+            coord_indices, coord_mask = self.coord_indices(input_ids)
+            return self.corner_indices(coord_indices, coord_mask)
 
         coord_mask = self.coord_mask(input_ids).squeeze()
         corner_indices = torch.zeros(input_ids.shape[0], dtype=input_ids.dtype, device=input_ids.device)
@@ -92,7 +94,7 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
 
         return corner_indices.unsqueeze(1)
     
-    def update_cache(self, corner_indices: torch.Tensor):
+    def update_corner_indices_cache(self, corner_indices: torch.Tensor):
         if corner_indices.shape[1] >= 2:
             self._last_corner_indices = corner_indices[:, -1]
             self._second_to_last_corner_indices = corner_indices[:, -2]

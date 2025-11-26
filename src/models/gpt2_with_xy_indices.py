@@ -19,10 +19,11 @@ class GPT2ModelWithXYIndices(CustomGPT2):
         self.min_coord_token_id = tokens.coord_token_id(0)
         self.max_coord_token_id = tokens.coord_token_id(256)
 
+        self._last_xy_indices = None
+
         self.post_init()
 
 
-    # TODO: implement caching for inference
     def forward(
             self,
             input_ids,
@@ -30,28 +31,35 @@ class GPT2ModelWithXYIndices(CustomGPT2):
             xy_indices=None,
             labels=None,
             inputs_embeds=None,
+            use_cache=None,
             **kwargs
         ):
 
         if xy_indices is None:
-            coord_indices, mask = self.coord_indices(input_ids)
-            xy_indices = self.xy_indices(coord_indices, mask)
+            if use_cache is True:
+                xy_indices = self.xy_indices_from_cache(input_ids)
+
+            else:
+                coord_indices, mask = self.coord_indices(input_ids)
+                xy_indices = self.xy_indices(coord_indices, mask)
 
         index_embeds = self.coord_index_embd(xy_indices)
 
         if inputs_embeds is None:
             tokens_embeds = self.transformer.wte(input_ids)
             inputs_embeds = tokens_embeds + index_embeds
-
         else:
             inputs_embeds += index_embeds
 
-        # TODO: fix kwargs handing
+        if use_cache is True:
+            self.update_xy_indices_cache(xy_indices)
+
         result = super().forward(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             labels=labels,
-            # **kwargs
+            use_cache=use_cache,
+            **kwargs
         )
 
         return result
@@ -66,7 +74,7 @@ class GPT2ModelWithXYIndices(CustomGPT2):
 
     def coord_indices(self, input_ids: torch.Tensor):
         with torch.no_grad():
-            coord_mask = (input_ids >= self.min_coord_token_id) & (input_ids <= self.max_coord_token_id)
+            coord_mask = self.coord_mask(input_ids)
             neg_mask = ~coord_mask
 
             if coord_mask.dim() == 1:
@@ -100,4 +108,30 @@ class GPT2ModelWithXYIndices(CustomGPT2):
             result = torch.cumsum(e, 1)
 
             return (result, coord_mask)
+        
+    def coord_mask(self, input_ids: torch.Tensor):
+        with torch.no_grad():
+            return (input_ids >= self.min_coord_token_id) & (input_ids <= self.max_coord_token_id)
+        
+            
+    def xy_indices_from_cache(self, input_ids: torch.Tensor) -> torch.Tensor:
+        if input_ids.shape[1] > 1:
+            coord_indices, mask = self.coord_indices(input_ids)
+            return self.xy_indices(coord_indices, mask)
+        
+        coord_mask = self.coord_mask(input_ids).squeeze()
+
+        xy_indices = torch.zeros(input_ids.shape[0], dtype=input_ids.dtype, device=input_ids.device)
+
+        x_coord_mask = ((self._last_xy_indices == 0) | (self._last_xy_indices == 2)) & coord_mask
+        xy_indices[x_coord_mask] = 1
+
+        y_coord_mask = (self._last_xy_indices == 1) & coord_mask
+        xy_indices[y_coord_mask] = 2
+
+        return xy_indices.unsqueeze(1)
+    
+
+    def update_xy_indices_cache(self, xy_indices: torch.Tensor):
+        self._last_xy_indices = xy_indices[:, -1]
 

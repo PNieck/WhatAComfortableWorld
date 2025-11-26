@@ -47,6 +47,7 @@ def main():
     print(model)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f'Using device: {device}')
     model.to(device)
     model.eval()
 
@@ -62,6 +63,8 @@ def main():
         floor_plans = pars_rate.parse(batch)
         floor_plans = validity_rate.filter_out_invalid(floor_plans)
         cov_rate.measure(floor_plans)
+
+        print("Batch done")
 
     print(f"Parsability: {pars_rate.rate()}")
     print(f"Examples {pars_rate.examples_cnt}")
