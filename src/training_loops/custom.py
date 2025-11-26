@@ -122,7 +122,7 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
             if device.type != "cpu":
                 batch = {k: v.to(device) for k, v in batch.items()}
 
-            labels = batch.pop('labels',None) # Remove labels since we want to compute the loss manually
+            labels = batch.pop('labels') # Remove labels since we want to compute the loss manually
 
             outputs = model(**batch)
             loss = calculate_loss(outputs, labels)

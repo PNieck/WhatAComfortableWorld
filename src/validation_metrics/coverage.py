@@ -50,7 +50,14 @@ class CoverageTest:
             return math.nan
 
         return self.overfilling_rate_sum / self.examples_cnt
+    
+    def correctness_rate(self) -> float:
+        if self.examples_cnt == 0:
+            return math.nan
+
+        return self.correct_floor_plans / self.examples_cnt
 
     def add_to_metrics(self, metrics: dict):
         metrics["Boundary avg coverage rate"] = self.avg_coverage_rate()
         metrics["Boundary avg overfilling rate"] = self.avg_overfilling_rate()
+        metrics["Boundary coverage correctness rate"] = self.correctness_rate()

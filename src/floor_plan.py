@@ -104,5 +104,8 @@ class FloorPlan:
     def polygon(self) -> Polygon:
         return Polygon(self.boundary * _SCALE_FACTOR)
     
+    def area(self) -> float:
+        return self.polygon().area
+    
     def rooms_polygons(self) -> List[Polygon]:
         return [room.boundary_polygon() for room in self.rooms]
