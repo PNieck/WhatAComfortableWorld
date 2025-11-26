@@ -4,7 +4,7 @@ general:
 paths:
   input_data: "./data/gpt2_main/input/"
   output_data: "./data/gpt2_main/output/"
-  trained_model: "./models/gpt2_with coord_indices/"
+  trained_model: "./models/gpt2_with corner_indices/"
 
 preprocessing:
   test_size: 0.05
@@ -18,7 +18,7 @@ preprocessing:
         percentage: 0.4
 
 model:
-  name: "gpt2_with_coord_indices"
+  name: "gpt2_with_corner_indices"
   type: "gpt2"
   with_coord_indices: True
   with_corner_indices: True
@@ -29,8 +29,8 @@ model:
 
 training:
   loop_type: "custom"
-  epochs: 60
+  epochs: 50
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
-  log_comment: "_coord_indices_training"
+  log_comment: "_corner_indices_training"

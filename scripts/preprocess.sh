@@ -9,4 +9,4 @@
 
 
 source venv/bin/activate
-python3 preprocess.py configs/main.yaml data/data.mat
+python3 preprocess.py configs/gpt2_main.yaml data/data.mat

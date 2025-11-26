@@ -32,3 +32,4 @@ training:
   batch_size: 32
   eval_steps: 500
   log_comment: "_main_gpt2_25_layers_training"
+  checkpointing_frequency: 5  # checkpoint every n epochs

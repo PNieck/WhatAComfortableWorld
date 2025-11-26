@@ -26,7 +26,7 @@ model:
 
 training:
   loop_type: "custom"
-  epochs: 60
+  epochs: 50
   lr: 1e-5
   batch_size: 32
   eval_steps: 500

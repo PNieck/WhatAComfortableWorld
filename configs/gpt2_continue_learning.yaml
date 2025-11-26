@@ -16,13 +16,16 @@ preprocessing:
         percentage: 0.4
 
 model:
-  input_model_path: "2025-11-19-01:58:21_fast_test_training"
+  input_model_path: "2025-11-19-16:52:05_main_gpt2_25_layers_training"
+  with_xy_indices: True
+  with_corner_indices: True
   max_seq_len: 320
 
 training:
   loop_type: "custom"
-  epochs: 2
+  epochs: 60
   lr: 1e-5
   batch_size: 32
-  eval_steps: 2
+  eval_steps: 500
   log_comment: "_main_gpt2_continue_training_with_coords"
+  checkpointing_frequency: 5  # checkpoint every n epochs
