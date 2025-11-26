@@ -22,6 +22,7 @@ from src.validation_metrics import (
     CoverageTest,
     GeomValidityRate,
     RoomsOverlappingTest,
+    RequiredRoomsTest
 )
 
 
@@ -58,6 +59,7 @@ def main():
     validity_rate = GeomValidityRate()
     cov_rate = CoverageTest()
     room_overlap_rate = RoomsOverlappingTest()
+    required_rooms = RequiredRoomsTest()
 
     generator = Generator(model, tokenizer, dataset)
 
@@ -69,6 +71,7 @@ def main():
         floor_plans = validity_rate.filter_out_invalid(floor_plans)
         cov_rate.measure(floor_plans)
         room_overlap_rate.measure(floor_plans)
+        required_rooms.measure(floor_plans)
 
         done += len(batch)
         print(f"Done {done}/{total}")
@@ -93,6 +96,10 @@ def main():
     print(f"Rooms avg overlapping rate: {room_overlap_rate.avg_overlapping_rate()}")
     print(f"Floor plans with no overlapping rooms: {room_overlap_rate.correct_floor_plans}/{room_overlap_rate.examples_cnt}")
 
+    print("\n")
+    print(f"Required rooms rate: {required_rooms.correctness_rate()}")
+    print(f"Floor plans with all required rooms: {required_rooms.correct_floor_plans}/{required_rooms.examples_cnt}")
+    required_rooms.print_missing_rooms()
 
 if __name__ == "__main__":
     main()

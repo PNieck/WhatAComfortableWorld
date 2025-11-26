@@ -9,6 +9,7 @@ from src.validation_metrics import (
     CoverageTest,
     GeomValidityRate,
     RoomsOverlappingTest,
+    RequiredRoomsTest
 )
 
 
@@ -23,6 +24,7 @@ def validate(
     validity_rate = GeomValidityRate()
     cov_rate = CoverageTest()
     room_overlap_rate = RoomsOverlappingTest()
+    required_rooms = RequiredRoomsTest()
 
     generator = Generator(model, tokenizer, dataset)
 
@@ -31,6 +33,7 @@ def validate(
         floor_plans = validity_rate.filter_out_invalid(floor_plans)
         cov_rate.measure(floor_plans)
         room_overlap_rate.measure(floor_plans)
+        required_rooms.measure(floor_plans)
     
     hparams = training_config.copy()
     hparams = hparams | model_config
@@ -45,5 +48,6 @@ def validate(
     validity_rate.add_to_metrics(metrics)
     cov_rate.add_to_metrics(metrics)
     room_overlap_rate.add_to_metrics(metrics)
+    required_rooms.add_to_metrics(metrics)
 
     log_writer.add_hparams(hparams, metrics)

@@ -2,3 +2,4 @@ from .coverage import CoverageTest
 from .parsability_rate import ParsabilityRate
 from .geometry_validity import GeomValidityRate
 from .rooms_overlapping import RoomsOverlappingTest
+from .required_rooms import RequiredRoomsTest
