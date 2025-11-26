@@ -59,12 +59,16 @@ def main():
 
     generator = Generator(model, tokenizer, dataset)
 
+    done = 0
+    total = len(dataset["valid"])
+
     for batch in generator.generate_in_batches():
         floor_plans = pars_rate.parse(batch)
         floor_plans = validity_rate.filter_out_invalid(floor_plans)
         cov_rate.measure(floor_plans)
 
-        print("Batch done")
+        done += len(batch)
+        print(f"Done {done}/{total}")
 
     print(f"Parsability: {pars_rate.rate()}")
     print(f"Examples {pars_rate.examples_cnt}")

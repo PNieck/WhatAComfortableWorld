@@ -1,5 +1,5 @@
 from .gpt2_with_xy_indices import GPT2ModelWithXYIndices
-from transformers import GPT2Config, GPT2LMHeadModel
+from transformers import GPT2Config
 import torch.nn as nn
 import torch
 
@@ -32,16 +32,11 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
 
         if corner_indices is None:
             if use_cache is True:
-                corner_indices = self.corner_indices_from_cache(input_ids)
-                xy_indices = None
+                corner_indices, xy_indices = self.corner_and_xy_indices_from_cache(input_ids)
 
             else:
-                coord_indices, coord_mask = self.coord_indices(input_ids)
+                corner_indices, xy_indices = self.corner_and_xy_indices(input_ids)
 
-                corner_indices = coord_indices.clone()
-                corner_indices = self.corner_indices(corner_indices, coord_mask)
-
-                xy_indices = self.xy_indices(coord_indices, coord_mask)
         else:
             xy_indices = None
 
@@ -62,6 +57,17 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
         )
 
 
+    def corner_and_xy_indices(self, input_ids: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        coord_indices, coord_mask = self.coord_indices(input_ids)
+
+        corner_indices = coord_indices.clone()
+        corner_indices = self.corner_indices(corner_indices, coord_mask)
+
+        xy_indices = self.xy_indices(coord_indices, coord_mask)
+
+        return corner_indices, xy_indices
+    
+
     def corner_indices(self, coord_indices: torch.Tensor, coord_mask: torch.Tensor):
         with torch.no_grad():
             dtype = coord_indices.dtype
@@ -70,10 +76,9 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
             return coord_indices
         
 
-    def corner_indices_from_cache(self, input_ids: torch.Tensor) -> torch.Tensor:
+    def corner_and_xy_indices_from_cache(self, input_ids: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if input_ids.shape[1] > 1:
-            coord_indices, coord_mask = self.coord_indices(input_ids)
-            return self.corner_indices(coord_indices, coord_mask)
+            return self.corner_and_xy_indices(input_ids)
 
         coord_mask = self.coord_mask(input_ids).squeeze()
         corner_indices = torch.zeros(input_ids.shape[0], dtype=input_ids.dtype, device=input_ids.device)
@@ -92,8 +97,9 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
         same_corner_mask = (~last_two_same_corner_mask) & (~first_corner_mask) & coord_mask
         corner_indices[same_corner_mask] = self._last_corner_indices[same_corner_mask]
 
-        return corner_indices.unsqueeze(1)
-    
+        return corner_indices.unsqueeze(1), None
+
+
     def update_corner_indices_cache(self, corner_indices: torch.Tensor):
         if corner_indices.shape[1] >= 2:
             self._last_corner_indices = corner_indices[:, -1]
