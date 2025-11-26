@@ -1,5 +1,3 @@
-import json
-
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
@@ -12,6 +10,17 @@ from transformers import (
 )
 
 from src.log_writer import LogWriter
+
+
+def calculate_loss(output, labels):
+    logits = output.logits
+    shift_logits = logits[:, :-1, :].contiguous()
+    shift_labels = labels[:, 1:].contiguous()
+
+    loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
+    loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+    return loss
 
 
 def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
@@ -113,8 +122,10 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
             if device.type != "cpu":
                 batch = {k: v.to(device) for k, v in batch.items()}
 
+            labels = batch.pop('labels',None) # Remove labels since we want to compute the loss manually
+
             outputs = model(**batch)
-            loss = outputs.loss
+            loss = calculate_loss(outputs, labels)
             train_loss += loss.item()
 
             optimizer.zero_grad()
