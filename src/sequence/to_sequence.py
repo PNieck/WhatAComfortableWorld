@@ -6,7 +6,7 @@ from src.floor_plan import FloorPlan, FrontDoor, Room
 
 
 def _boundary_sequence(plan: FloorPlan) -> List[str]:
-    result = [None] * (plan.boundary_len * 2 + 1)
+    result = [None] * (plan.corners_cnt * 2 + 1)
     
     result[0] = tokens.BOUNDARY_TOKEN
 
@@ -28,7 +28,7 @@ def _door_sequence(door: FrontDoor) -> List[str]:
 
 
 def _room_sequence(room: Room) -> List[str]:
-    result = [None] * (room.boundary_len * 2 + 1)
+    result = [None] * (room.corners_cnt * 2 + 1)
 
     result[0] = tokens.room_token(room.type.value)
 

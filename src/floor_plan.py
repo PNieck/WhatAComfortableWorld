@@ -27,19 +27,27 @@ class RoomType(Enum):
 
 class Room:
     @property
-    def boundary_len(self):
+    def corners_cnt(self):
         return self.boundary.shape[0]
     
     @property
     def area(self) -> float:
-        return self.boundary_polygon().area
+        return self.polygon().area
 
     def __init__(self, type: RoomType, boundary):
         self.type = type
         self.boundary = boundary
 
-    def boundary_polygon(self) -> Polygon:
+    def polygon(self) -> Polygon:
         return Polygon(self.boundary * _SCALE_FACTOR)
+    
+    @classmethod
+    def from_polygon(cls, polygon: Polygon, type: RoomType) -> 'Room':
+        scaled_polygon = np.array(polygon.exterior.coords) / _SCALE_FACTOR
+        scaled_polygon = scaled_polygon[:-1]                  # Remove duplicated last point
+        scaled_polygon = scaled_polygon.astype(np.uint8)
+
+        return cls(type, scaled_polygon)
 
 
 class FrontDoor:
@@ -88,7 +96,7 @@ class FloorPlan:
     MAX_COORDINATE = 255
 
     @property
-    def boundary_len(self):
+    def corners_cnt(self):
         return self.boundary.shape[0]
     
     @property
@@ -108,4 +116,13 @@ class FloorPlan:
         return self.polygon().area
     
     def rooms_polygons(self) -> List[Polygon]:
-        return [room.boundary_polygon() for room in self.rooms]
+        return [room.polygon() for room in self.rooms]
+    
+    @classmethod
+    def from_polygon(cls, name: str, boundary: Polygon, front_door: FrontDoor, rooms: List[Room]) -> 'FloorPlan':
+        boundary_array = np.array(boundary.exterior.coords) / _SCALE_FACTOR
+        boundary_array = boundary_array[:-1]                  # Remove duplicated last point
+
+        boundary_array = boundary_array.astype(np.uint8)
+
+        return cls(name, boundary_array, front_door, rooms)
