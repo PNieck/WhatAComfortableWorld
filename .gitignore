@@ -18,6 +18,9 @@ venv/
 # File with slurm job_id
 job_id
 
+# Temporary folder
+tmp/
+
 # Log files
 *.log
 trainer_output/
