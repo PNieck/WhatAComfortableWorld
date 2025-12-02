@@ -1,6 +1,6 @@
 from transformers import GPT2Config, GPT2LMHeadModel
 
-import tokens
+import src.tokens as tokens
 
 
 class CustomGPT2(GPT2LMHeadModel):  

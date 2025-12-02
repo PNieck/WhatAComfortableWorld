@@ -4,7 +4,7 @@ import re
 from transformers import PreTrainedTokenizer
 import torch
 
-import tokens
+import src.tokens as tokens
 
 
 class FloorPlanTokenizer(PreTrainedTokenizer):

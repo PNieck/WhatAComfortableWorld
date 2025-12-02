@@ -1,7 +1,7 @@
 from typing import List
 import itertools
 
-import tokens
+import src.tokens as tokens
 from src.floor_plan import FloorPlan, FrontDoor, Room
 
 
