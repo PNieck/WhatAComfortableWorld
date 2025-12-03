@@ -10,17 +10,7 @@ from transformers import (
 )
 
 from src.log_writer import LogWriter
-
-
-def calculate_loss(output, labels):
-    logits = output.logits
-    shift_logits = logits[:, :-1, :].contiguous()
-    shift_labels = labels[:, 1:].contiguous()
-
-    loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
-    loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-
-    return loss
+from src.losses import get_loss
 
 
 def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
@@ -100,6 +90,8 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5, weight_decay=0.01)
 
+    loss_fun = get_loss(config)
+
     num_epochs = config["epochs"]
     num_training_steps = num_epochs * len(train_dataloader)
     lr_scheduler = get_scheduler(
@@ -125,7 +117,7 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
             labels = batch.pop('labels') # Remove labels since we want to compute the loss manually
 
             outputs = model(**batch)
-            loss = calculate_loss(outputs, labels)
+            loss = loss_fun(outputs, labels)
             train_loss += loss.item()
 
             optimizer.zero_grad()
