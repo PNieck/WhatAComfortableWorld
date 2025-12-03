@@ -5,6 +5,7 @@
 data/*
 # Single exception
 !data/invalid_floor_plans.txt
+!data/imperfect_floor_plans.txt
 
 # Python artifacts
 __pycache__/
