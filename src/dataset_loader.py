@@ -6,6 +6,7 @@ from enum import IntFlag, auto
 
 
 INVALID_FLOOR_PLANS_FILE = "data/invalid_floor_plans.txt"
+IMPERFECT_FLOOR_PLANS_FILE = "data/imperfect_floor_plans.txt"
 
 
 class Split(IntFlag):
@@ -34,22 +35,29 @@ def load_floor_plans_dataset(path: str, splits: Split = Split.TRAIN | Split.VALI
     return dataset
 
 
-def _load_invalid() -> set[str]:
+def _load_floor_plan_names(path: str) -> set[str]:
     try:
-        with open(INVALID_FLOOR_PLANS_FILE, mode='r') as file:
-            invalid_plans = file.readlines()
+        with open(path, mode='r') as file:
+            plans = file.readlines()
     except FileNotFoundError:
-        print("WARNING: cannot load invalid floor plans list")
+        print(f"WARNING: cannot load floor plans from {path}")
         return set()
 
     # Remove all white spaces from the end 
-    invalid_plans = [line.rstrip() for line in invalid_plans]
+    plans = [line.rstrip() for line in plans]
 
     # Remove comments and empty strings 
-    invalid_plans = [plan for plan in invalid_plans if plan != "" and not plan.startswith("#")]
+    plans = [plan for plan in plans if plan != "" and not plan.startswith("#")]
 
-    return set(invalid_plans)
+    return set(plans)
 
+
+def _load_invalid() -> set[str]:
+    return _load_floor_plan_names(INVALID_FLOOR_PLANS_FILE)
+
+
+def load_imperfect_floor_plans_names() -> set[str]:
+    return _load_floor_plan_names(IMPERFECT_FLOOR_PLANS_FILE)
 
 
 def load_dataset_from_mat_file(path: str, exclude_invalid=True):

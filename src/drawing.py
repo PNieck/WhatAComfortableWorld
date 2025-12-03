@@ -23,14 +23,14 @@ _room2color = {
 }
 
 
-def draw_doors(ax, floor_plan: FloorPlan):
+def _draw_doors(ax, floor_plan: FloorPlan):
     x = floor_plan.front_door.xs
     y = floor_plan.front_door.ys
 
     ax.plot(x, y, linewidth=2, color="yellow")
 
 
-def draw_room_boundary(ax, room: Room):
+def _draw_room_boundary(ax, room: Room):
     x = room.boundary[:, 0]
     y = room.boundary[:, 1]
 
@@ -40,7 +40,7 @@ def draw_room_boundary(ax, room: Room):
     ax.plot(x, y, linewidth=2, color="grey")
 
 
-def draw_boundary(ax, floor_plan: FloorPlan):
+def _draw_boundary(ax, floor_plan: FloorPlan):
     x = floor_plan.boundary[:, 0]
     y = floor_plan.boundary[:, 1]
 
@@ -50,24 +50,37 @@ def draw_boundary(ax, floor_plan: FloorPlan):
     ax.plot(x, y, linewidth=2, color="black")
 
 
-def draw_floor_plan(floor_plan: FloorPlan):
+def _draw_room_corners(ax, floor_plan: FloorPlan):
+    for room in floor_plan.rooms:
+        x = room.boundary[:, 0]
+        y = room.boundary[:, 1]
+
+        ax.scatter(x, y, color="black", s=10)
+
+
+
+def draw_floor_plan(floor_plan: FloorPlan, draw_room_corners: bool = False):
     fig, ax = plt.subplots()
 
     for room in floor_plan.rooms:
-        p = Polygon(room.boundary, facecolor=_room2color[room.type])
+        p = Polygon(room.boundary, facecolor=_room2color[room.type], label=room.type.name)
 
         ax.add_patch(p)
 
     for room in floor_plan.rooms:
-        draw_room_boundary(ax, room)
+        _draw_room_boundary(ax, room)
 
-    draw_boundary(ax, floor_plan)
-    draw_doors(ax, floor_plan)
+    _draw_boundary(ax, floor_plan)
+    _draw_doors(ax, floor_plan)
+
+    if draw_room_corners:
+        _draw_room_corners(ax, floor_plan)
 
     plt.grid()
     plt.ylim(0, 250)
     plt.xlim(0, 250)
     plt.gca().invert_yaxis()
+    plt.legend()
 
     plt.title(f'Floor plan {floor_plan.name}')
 

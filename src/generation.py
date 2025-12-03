@@ -6,7 +6,7 @@ from datasets import DatasetDict
 import torch
 from torch.utils.data import DataLoader
 
-import tokens
+import src.tokens as tokens
 
 
 class Generator:

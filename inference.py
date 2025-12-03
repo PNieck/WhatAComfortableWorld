@@ -17,10 +17,14 @@ from src.models import (
     preprocess_model_config
 )
 
-from src.inference_metrics import (
+from src.validation_metrics import (
     ParsabilityRate,
     CoverageTest,
-    GeomValidityRate
+    GeomValidityRate,
+    RoomsOverlappingTest,
+    RequiredRoomsTest,
+    NarrowSpacesTest,
+    GeometrySimplicityTest
 )
 
 
@@ -55,7 +59,11 @@ def main():
 
     pars_rate = ParsabilityRate()
     validity_rate = GeomValidityRate()
+    geom_simplicity = GeometrySimplicityTest()
     cov_rate = CoverageTest()
+    room_overlap_rate = RoomsOverlappingTest()
+    required_rooms = RequiredRoomsTest()
+    narrow_spaces = NarrowSpacesTest()
 
     generator = Generator(model, tokenizer, dataset)
 
@@ -65,7 +73,11 @@ def main():
     for batch in generator.generate_in_batches():
         floor_plans = pars_rate.parse(batch)
         floor_plans = validity_rate.filter_out_invalid(floor_plans)
+        geom_simplicity.simplify(floor_plans)
         cov_rate.measure(floor_plans)
+        room_overlap_rate.measure(floor_plans)
+        required_rooms.measure(floor_plans)
+        narrow_spaces.measure(floor_plans)
 
         done += len(batch)
         print(f"Done {done}/{total}")
@@ -82,10 +94,24 @@ def main():
     print(f"Valid examples {validity_rate.valid_examples}")
 
     print("\n")
+    print(f"Simplicity rate {geom_simplicity.rate()}")
+
+    print("\n")
     print(f"Room coverage: {cov_rate.avg_coverage_rate()}")
     print(f"Overfill rate {cov_rate.avg_overfilling_rate()}")
-    print(f"Fully covered floor plans: {cov_rate.correct_floor_plans}")
+    print(f"Fully covered floor plans: {cov_rate.correct_floor_plans}/{cov_rate.examples_cnt}")
 
+    print("\n")
+    print(f"Rooms avg overlapping rate: {room_overlap_rate.avg_overlapping_rate()}")
+    print(f"Floor plans with no overlapping rooms: {room_overlap_rate.correct_floor_plans}/{room_overlap_rate.examples_cnt}")
+
+    print("\n")
+    print(f"Required rooms rate: {required_rooms.correctness_rate()}")
+    print(f"Floor plans with all required rooms: {required_rooms.correct_floor_plans}/{required_rooms.examples_cnt}")
+    required_rooms.print_missing_rooms()
+
+    print("\n")
+    print(f"Floor plans with no narrow spaces: {narrow_spaces.correct_cnt}/{narrow_spaces.examples_cnt}")
 
 if __name__ == "__main__":
     main()

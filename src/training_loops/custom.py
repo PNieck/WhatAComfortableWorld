@@ -1,5 +1,3 @@
-import json
-
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
@@ -12,6 +10,7 @@ from transformers import (
 )
 
 from src.log_writer import LogWriter
+from src.losses import get_loss
 
 
 def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
@@ -91,6 +90,8 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5, weight_decay=0.01)
 
+    loss_fun = get_loss(config)
+
     num_epochs = config["epochs"]
     num_training_steps = num_epochs * len(train_dataloader)
     lr_scheduler = get_scheduler(
@@ -113,8 +114,10 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
             if device.type != "cpu":
                 batch = {k: v.to(device) for k, v in batch.items()}
 
+            labels = batch.pop('labels') # Remove labels since we want to compute the loss manually
+
             outputs = model(**batch)
-            loss = outputs.loss
+            loss = loss_fun(outputs, labels)
             train_loss += loss.item()
 
             optimizer.zero_grad()

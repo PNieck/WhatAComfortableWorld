@@ -5,6 +5,7 @@
 data/*
 # Single exception
 !data/invalid_floor_plans.txt
+!data/imperfect_floor_plans.txt
 
 # Python artifacts
 __pycache__/
@@ -17,6 +18,9 @@ venv/
 
 # File with slurm job_id
 job_id
+
+# Temporary folder
+tmp/
 
 # Log files
 *.log

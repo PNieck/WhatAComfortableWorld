@@ -3,7 +3,7 @@ import torch.nn as nn
 from transformers import GPT2Config
 from .gpt2 import CustomGPT2
 
-import tokens
+import src.tokens as tokens
 
 
 class GPT2ModelWithXYIndices(CustomGPT2):
