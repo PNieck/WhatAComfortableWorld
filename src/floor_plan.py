@@ -3,7 +3,7 @@ from typing import List
 
 import numpy as np
 
-from shapely import Polygon
+from shapely import Polygon, LineString
 
 
 _SCALE_FACTOR = 18/256
@@ -85,7 +85,10 @@ class FrontDoor:
 
     def __init__(self, corners: np.ndarray):
         assert corners.shape == (2, 2), "Invalid array dimensions"
-        self.corners = corners        
+        self.corners = corners
+    
+    def polygon(self):
+        return LineString(self.corners * _SCALE_FACTOR)
 
     @classmethod
     def from_xy(cls, x1: int, y1: int, x2: int, y2: int):
@@ -117,6 +120,12 @@ class FloorPlan:
     
     def rooms_polygons(self) -> List[Polygon]:
         return [room.polygon() for room in self.rooms]
+    
+    def rooms_of_type(self, room_type: RoomType) -> List[Room]:
+        return [room for room in self.rooms if room.type == room_type]
+    
+    def rooms_of_types(self, room_types: set[RoomType]) -> List[Room]:
+        return [room for room in self.rooms if room.type in room_types]
     
     @classmethod
     def from_polygon(cls, name: str, boundary: Polygon, front_door: FrontDoor, rooms: List[Room]) -> 'FloorPlan':

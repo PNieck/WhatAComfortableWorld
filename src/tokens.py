@@ -1,3 +1,6 @@
+import torch
+
+
 START_SEQ_TOKEN_ID = 0
 START_SEQ_TOKEN = "<BOS>"
 
@@ -31,3 +34,17 @@ def coord_token_id(coord: int):
 
 def coord_token(coord: int) -> str:
     return f"<Coord {coord}>"
+
+
+MIN_COORD_ID = coord_token_id(0)
+MAX_COORD_ID = coord_token_id(256)
+
+
+def is_coord(token_id):
+    if isinstance(token_id, int):
+        return token_id >= MIN_COORD_ID and token_id <= MAX_COORD_ID
+    
+    if isinstance(token_id, torch.Tensor):
+        return (token_id >= MIN_COORD_ID) & (token_id <= MAX_COORD_ID)
+    
+    raise Exception(f"Invalid type {type(token_id)}")

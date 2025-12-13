@@ -8,7 +8,7 @@ from transformers import (
 import torch.nn as nn
 
 from .gemma3 import get_gemma3
-from .gpt2 import get_gpt2, get_gpt2_config
+from .gpt2 import get_gpt2, get_gpt2_config, CustomGPT2
 from .gpt2_with_xy_indices import GPT2ModelWithXYIndices
 from .gpt2_with_corners_indices import GPT2ModelWithCornerIndices
 
@@ -47,6 +47,8 @@ def get_pretrained_model(path) -> PreTrainedModel:
         return GPT2ModelWithXYIndices.from_pretrained(path)
     elif architecture == "GPT2ModelWithCornerIndices":
         return GPT2ModelWithCornerIndices.from_pretrained(path)
+    elif architecture == "CustomGPT2":
+        return CustomGPT2.from_pretrained(path)
     else:
         return AutoModelForCausalLM.from_pretrained(path)
     

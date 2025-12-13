@@ -15,7 +15,7 @@ class IgnorePromptInLoss:
 
         prompt_end_indices = door_indices + 4
 
-        _, cols = labels.shape
+        cols = labels.shape[1]
         col_idx = torch.arange(cols, device=labels.device).unsqueeze(0)
 
         prompt_end_indices = prompt_end_indices.unsqueeze(1)
