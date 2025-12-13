@@ -24,7 +24,8 @@ from src.validation_metrics import (
     RoomsOverlappingTest,
     RequiredRoomsTest,
     NarrowSpacesTest,
-    GeometrySimplicityTest
+    GeometrySimplicityTest,
+    RoomsNeighborhoodTest
 )
 
 
@@ -64,6 +65,7 @@ def main():
     room_overlap_rate = RoomsOverlappingTest()
     required_rooms = RequiredRoomsTest()
     narrow_spaces = NarrowSpacesTest()
+    neighborhood = RoomsNeighborhoodTest()
 
     generator = Generator(model, tokenizer, dataset)
 
@@ -78,6 +80,7 @@ def main():
         room_overlap_rate.measure(floor_plans)
         required_rooms.measure(floor_plans)
         narrow_spaces.measure(floor_plans)
+        neighborhood.measure(floor_plans)
 
         done += len(batch)
         print(f"Done {done}/{total}")
@@ -116,6 +119,12 @@ def main():
 
     print("\n")
     print(f"Floor plans with no narrow spaces: {narrow_spaces.correct_cnt}/{narrow_spaces.examples_cnt}")
+
+    print("\n")
+    print(f"Avg neighborhood loss: {neighborhood.avg_loss()}")
+    print(f"Perfect neighborhood floor plans: {neighborhood.perfect_floor_plans}/{neighborhood.examples_cnt}")
+    if neighborhood.nan_losses > 0:
+        print(f"Nan neighbor losses: {neighborhood.nan_losses}")
 
 if __name__ == "__main__":
     main()

@@ -12,6 +12,7 @@ class KitchenEnforcementLoss:
         self.alpha = alpha
         self.kitchen_token_id = tokens.room_token_id(RoomType.Kitchen.value)
 
+
     def __call__(self, output, labels: torch.Tensor):
         std_loss = self.base_loss(output, labels)
 

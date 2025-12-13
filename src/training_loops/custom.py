@@ -90,7 +90,7 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5, weight_decay=0.01)
 
-    loss_fun = get_loss(config)
+    loss_fun = get_loss(config, tokenizer)
 
     num_epochs = config["epochs"]
     num_training_steps = num_epochs * len(train_dataloader)
