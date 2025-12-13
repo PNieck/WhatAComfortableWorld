@@ -116,3 +116,18 @@ class FloorPlanTokenizer(PreTrainedTokenizer):
         max_coord_token = tokens.coord_token_id(self.resolution)
 
         return token >= min_coord_token and token <= max_coord_token
+    
+    def prompt_mask(self, sequence: torch.Tensor):
+        door_token_mask = (sequence == tokens.DOOR_TOKEN_ID)
+        door_indices = door_token_mask.int().argmax(dim=1)
+
+        prompt_end_indices = door_indices + 4
+
+        cols = sequence.shape[1]
+        col_idx = torch.arange(cols, device=sequence.device).unsqueeze(0)
+
+        prompt_end_indices = prompt_end_indices.unsqueeze(1)
+
+        mask = (col_idx <= prompt_end_indices).bool()
+
+        return mask

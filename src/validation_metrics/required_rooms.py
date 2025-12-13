@@ -2,6 +2,8 @@ from typing import List
 
 from src.floor_plan import FloorPlan, RoomType, Room
 
+import math
+
 
 class RequiredRoomsTest:
     def __init__(self):
@@ -52,7 +54,7 @@ class RequiredRoomsTest:
 
     def correctness_rate(self) -> float:
         if self.examples_cnt == 0:
-            return 0.0
+            return math.nan
 
         return self.correct_floor_plans / self.examples_cnt
 
