@@ -47,7 +47,7 @@ def main():
 
     tokenizer = FloorPlanTokenizer()
     model_config = preprocess_model_config(model_config, tokenizer)
-    model = get_pretrained_model(paths_config["trained_model"])
+    model = get_pretrained_model(model_config)
     print_model_size(model)
     print(model)
 

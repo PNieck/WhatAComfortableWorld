@@ -2,7 +2,7 @@ general:
   seed: 42
 
 paths:
-  input_data: "./data/gpt2_main/input/"
+  input_data: "./data/gpt2_fast_test/input"
 
 preprocessing:
   test_size: 0.05
@@ -16,16 +16,16 @@ preprocessing:
         percentage: 0.4
 
 model:
-  input_model_path: "2025-11-19-16:52:05_main_gpt2_25_layers_training"
-  with_xy_indices: True
-  with_corner_indices: True
+  input_model_path: "2025-12-15-21:30:06_fast_test_training"
+  # from_checkpoint: True
+  # checkpoint_epoch: 9
   max_seq_len: 320
 
 training:
   loop_type: "custom"
-  epochs: 60
+  epochs: 10
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
   log_comment: "_main_gpt2_continue_training_with_coords"
-  checkpointing_frequency: 5  # checkpoint every n epochs
+  checkpointing_frequency: 3  # checkpoint every n epochs
