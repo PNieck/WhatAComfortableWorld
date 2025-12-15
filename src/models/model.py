@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+import re
 
 from transformers import (
     AutoModelForCausalLM,
@@ -15,7 +17,7 @@ from .gpt2_with_corners_indices import GPT2ModelWithCornerIndices
 
 def get_model(config) -> nn.Module:
     if "input_model_path" in config:
-        return get_pretrained_model(config["input_model_path"])
+        return get_pretrained_model(config)
 
     if config["type"] == "gemma3":
         return get_gemma3(config)
@@ -35,10 +37,15 @@ def get_model(config) -> nn.Module:
         raise ValueError("Invalid model type")
     
 
-def get_pretrained_model(path) -> PreTrainedModel:
-    path = "runs/" + path + "/model/"
+def get_pretrained_model(config) -> PreTrainedModel:
+    path = "runs/" + config["input_model_path"]
 
-    with open(path + "config.json", "r") as file:
+    if config["from_checkpoint"]:
+        path = _get_checkpoint_dir(config, path)
+    else:
+        path += "/model"
+
+    with open(path + "/config.json", "r") as file:
         data = json.load(file)
         
     architecture = data["architectures"][0]
@@ -52,6 +59,31 @@ def get_pretrained_model(path) -> PreTrainedModel:
     else:
         return AutoModelForCausalLM.from_pretrained(path)
     
+
+def _get_checkpoint_dir(config, path) -> str:
+    if "checkpoint_epoch" in config:
+        epoch_number = config["checkpoint_epoch"]
+        
+    else:
+        tmp_path = Path(path + "/checkpoints")
+
+        max_epoch = -1
+        for entry in tmp_path.iterdir():
+            if not entry.is_dir():
+                continue
+
+            match = re.match(r"^epoch_(\d+)", entry.name)
+            if not match:
+                continue
+
+            epoch = int(match.group(1))
+            if epoch > max_epoch:
+                max_epoch = epoch
+
+        epoch_number = max_epoch
+
+    return path + f"/checkpoints/epoch_{epoch_number}"
+        
 
 def print_model_size(model: nn.Module):
     model_size = sum(t.numel() for t in model.parameters())

@@ -21,9 +21,9 @@ model:
   type: "gpt2"
   with_xy_indices: True
   max_seq_len: 320
-  n_layer: 12
-  n_head: 8
-  n_embd: 256
+  n_layer: 3
+  n_head: 2
+  n_embd: 64
 
 training:
   loop_type: "custom"
@@ -31,5 +31,5 @@ training:
   lr: 1e-6
   batch_size: 32
   eval_steps: 2
-  checkpointing_frequency: 4  # checkpoint every n epochs
+  checkpointing_frequency: 3  # checkpoint every n epochs
   log_comment: "_fast_test_training"
