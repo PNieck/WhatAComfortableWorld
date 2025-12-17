@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import List
 
-from sympy import Polygon, true
 import torch
 import shapely
 from shapely.ops import linemerge
@@ -11,7 +10,7 @@ import src.tokens as tokens
 from src.floor_plan_tokenizer import FloorPlanTokenizer
 from src.floor_plan import RoomType
 from src.sequence.from_sequence import boundary_from_sequence
-from src.polygons_utils import remove_collinear_points
+from src.geom_utils import LineType, line_type
 
 
 def get_gpt2_config(config) -> GPT2Config:
@@ -130,6 +129,10 @@ class CustomGPT2(GPT2LMHeadModel):
                     self.update_generated_room(input_ids, batch_no)
                     self.mask_for_second_y_in_room(logits, batch_no)
 
+                case TokenToGenerateType.ThirdXInRoom:
+                    self.update_generated_room(input_ids, batch_no)
+                    self.mask_for_third_x_in_room(logits, batch_no)
+
 
             self.cached_prev_token_to_gen[batch_no] = token_to_generate.value
             
@@ -163,10 +166,7 @@ class CustomGPT2(GPT2LMHeadModel):
 
     def mask_for_first_x_in_room(self, logits, batch_no):
         polygon = self.cached_remaining_empty_spaces[batch_no]
-        (min_x, _, max_x, _) = polygon.bounds
-
-        min_x = int(min_x)
-        max_x = int(max_x)
+        (min_x, max_x) = self.geometry_x_bounds(polygon)
 
         is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
 
@@ -188,16 +188,15 @@ class CustomGPT2(GPT2LMHeadModel):
 
         line = shapely.LineString([(x, min_y), (x, max_y)])
         intersection = polygon.intersection(line)
+        if intersection.geom_type == "MultiLineString":
+            intersection = linemerge(intersection)
 
         is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
 
         assert not intersection.is_empty
 
         if intersection.geom_type == "LineString":
-            (_, min_y, _, max_y) = intersection.bounds
-
-            min_y = int(min_y)
-            max_y = int(max_y)
+            (min_y, max_y) = self.geometry_y_bounds(intersection)
 
             assert len(intersection.coords) == 2
 
@@ -208,10 +207,7 @@ class CustomGPT2(GPT2LMHeadModel):
 
         elif intersection.geom_type == "MultiLineString":
             for line in intersection.geoms:
-                (_, min_y, _, max_y) = line.bounds
-
-                min_y = int(min_y)
-                max_y = int(max_y)
+                (min_y, max_y) = self.geometry_y_bounds(line)
                 
                 assert len(intersection.coords) == 2
 
@@ -228,10 +224,7 @@ class CustomGPT2(GPT2LMHeadModel):
 
     def mask_for_second_x_in_room(self, logits, batch_no):
         polygon = self.cached_remaining_empty_spaces[batch_no]
-        (min_x, _, max_x, _) = polygon.bounds
-
-        min_x = int(min_x)
-        max_x = int(max_x)
+        (min_x, max_x) = self.geometry_x_bounds(polygon)
 
         first_x = self.cached_room_in_generation[batch_no][0]
         first_y = self.cached_room_in_generation[batch_no][1]
@@ -269,10 +262,7 @@ class CustomGPT2(GPT2LMHeadModel):
 
         else:
             polygon = self.cached_remaining_empty_spaces[batch_no]
-            (_, min_y, _, max_y) = polygon.bounds
-
-            min_y = int(min_y)
-            max_y = int(max_y)
+            (min_y, max_y) = self.geometry_y_bounds(polygon)
 
             first_point = shapely.Point(first_x, first_y)
 
@@ -289,6 +279,53 @@ class CustomGPT2(GPT2LMHeadModel):
             is_valid[last_y_token_id] = False     
 
         logits[batch_no, :, ~is_valid] = -torch.inf
+
+
+    def mask_for_third_x_in_room(self, logits, batch_no):
+        first_x = self.cached_room_in_generation[batch_no][0]
+        first_y = self.cached_room_in_generation[batch_no][1]
+
+        second_x = self.cached_room_in_generation[batch_no][2]
+        second_y = self.cached_room_in_generation[batch_no][3]
+
+        last_line_type = line_type(first_x, first_y, second_x, second_y)
+        assert last_line_type != LineType.Diagonal
+
+        is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
+
+        polygon = self.cached_remaining_empty_spaces[batch_no]
+        (min_x, max_x) = self.geometry_x_bounds(polygon)
+
+        last_point = shapely.Point(second_x, second_y)
+
+        if last_line_type == LineType.Vertical:
+            
+
+            if second_x != min_x:
+                line = shapely.LineString([(min_x, second_y), (second_x, second_y)])
+                inter = polygon.intersection(line)
+                self.mask_x_direction(inter, last_point, is_valid)
+
+            if second_x != max_x:
+                line = shapely.LineString([(second_x, second_y), (max_x, second_y)])
+                inter = polygon.intersection(line)
+                self.mask_x_direction(inter, last_point, is_valid)
+
+        else:
+            # Line is Horizontal
+
+            if first_x < second_x:
+                line = shapely.LineString([(second_x, second_y), (max_x, second_y)])
+                inter = polygon.intersection(line)
+                self.mask_x_direction(inter, last_point, is_valid)
+
+            else:
+                line = shapely.LineString([(min_x, second_y), (second_x, second_y)])
+                inter = polygon.intersection(line)
+                self.mask_x_direction(inter, last_point, is_valid)
+
+        logits[batch_no, :, ~is_valid] = -torch.inf
+            
 
     
     def init_cache(self, input_ids):
@@ -358,10 +395,7 @@ class CustomGPT2(GPT2LMHeadModel):
         if not intersection.intersects(point):
             return
         
-        (min_x, _, max_x, _) = intersection.bounds
-
-        min_x = int(min_x)
-        max_x = int(max_x)
+        (min_x, max_x) = self.geometry_x_bounds(intersection)
 
         min_token = tokens.coord_token_id(min_x)
         max_token = tokens.coord_token_id(max_x)
@@ -416,12 +450,26 @@ class CustomGPT2(GPT2LMHeadModel):
         if not intersection.intersects(point):
             return
         
-        (_, min_y, _, max_y) = intersection.bounds
-
-        min_y = int(min_y)
-        max_y = int(max_y)
+        (min_y, max_y) = self.geometry_y_bounds(intersection)
 
         min_token = tokens.coord_token_id(min_y)
         max_token = tokens.coord_token_id(max_y)
 
         is_valid[min_token:(max_token+1)] = True
+
+
+    def geometry_x_bounds(self, geom):
+        (min_x, _, max_x, _) = geom.bounds
+
+        min_x = int(min_x)
+        max_x = int(max_x)
+
+        return (min_x, max_x)
+    
+    def geometry_y_bounds(self, geom):
+        (_, min_y, _, max_y) = geom.bounds
+
+        min_y = int(min_y)
+        max_y = int(max_y)
+
+        return (min_y, max_y)
