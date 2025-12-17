@@ -129,13 +129,15 @@ class CustomGPT2(GPT2LMHeadModel):
                     self.update_generated_room(input_ids, batch_no)
                     self.mask_for_second_y_in_room(logits, batch_no)
 
-                case TokenToGenerateType.ThirdXInRoom:
+                case TokenToGenerateType.ThirdXInRoom | TokenToGenerateType.FourthXInRoom:
                     self.update_generated_room(input_ids, batch_no)
-                    self.mask_for_third_x_in_room(logits, batch_no)
+                    self.mask_for_nth_x_in_room(logits, batch_no)
 
-                case TokenToGenerateType.ThirdYInRoom:
+                case TokenToGenerateType.ThirdYInRoom | TokenToGenerateType.FourthYInRoom:
                     self.update_generated_room(input_ids, batch_no)
-                    self.mask_for_third_y_in_room(logits, batch_no)
+                    self.mask_for_nth_y_in_room(logits, batch_no)
+
+
 
 
             self.cached_prev_token_to_gen[batch_no] = token_to_generate.value
@@ -285,14 +287,14 @@ class CustomGPT2(GPT2LMHeadModel):
         logits[batch_no, :, ~is_valid] = -torch.inf
 
 
-    def mask_for_third_x_in_room(self, logits, batch_no):
-        first_x = self.cached_room_in_generation[batch_no][0]
-        first_y = self.cached_room_in_generation[batch_no][1]
+    def mask_for_nth_x_in_room(self, logits, batch_no):
+        second_to_last_x = self.cached_room_in_generation[batch_no][-4]
+        second_to_last_y = self.cached_room_in_generation[batch_no][-3]
 
-        second_x = self.cached_room_in_generation[batch_no][2]
-        second_y = self.cached_room_in_generation[batch_no][3]
+        last_x = self.cached_room_in_generation[batch_no][-2]
+        last_y = self.cached_room_in_generation[batch_no][-1]
 
-        last_line_type = line_type(first_x, first_y, second_x, second_y)
+        last_line_type = line_type(second_to_last_x, second_to_last_y, last_x, last_y)
         assert last_line_type != LineType.Diagonal
 
         is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
@@ -300,91 +302,91 @@ class CustomGPT2(GPT2LMHeadModel):
         polygon = self.cached_remaining_empty_spaces[batch_no]
         (min_x, max_x) = self.geometry_x_bounds(polygon)
 
-        last_point = shapely.Point(second_x, second_y)
+        last_point = shapely.Point(last_x, last_y)
 
         if last_line_type == LineType.Vertical:
-            if second_x != min_x:
-                line = shapely.LineString([(min_x, second_y), (second_x, second_y)])
+            if last_x != min_x:
+                line = shapely.LineString([(min_x, last_y), (last_x, last_y)])
                 inter = polygon.intersection(line)
                 self.mask_x_direction(inter, last_point, is_valid)
 
-            if second_x != max_x:
-                line = shapely.LineString([(second_x, second_y), (max_x, second_y)])
+            if last_x != max_x:
+                line = shapely.LineString([(last_x, last_y), (max_x, last_y)])
                 inter = polygon.intersection(line)
                 self.mask_x_direction(inter, last_point, is_valid)
 
             # Checking if we can stay in the same x
-            if first_y < second_y:
-                next_y = second_y + 1
+            if second_to_last_y < last_y:
+                next_y = last_y + 1
             else:
-                next_y = second_y - 1
+                next_y = last_y - 1
 
-            next_point = shapely.Point(second_x, next_y)
+            next_point = shapely.Point(last_x, next_y)
             if not polygon.intersects(next_point):
-                token_id = tokens.coord_token_id(second_x)
+                token_id = tokens.coord_token_id(last_x)
                 is_valid[token_id] = False
 
         else:
             # Line is Horizontal
 
-            if first_x < second_x:
-                line = shapely.LineString([(second_x, second_y), (max_x, second_y)])
+            if second_to_last_x < last_x:
+                line = shapely.LineString([(last_x, last_y), (max_x, last_y)])
                 inter = polygon.intersection(line)
                 self.mask_x_direction(inter, last_point, is_valid)
 
             else:
-                line = shapely.LineString([(min_x, second_y), (second_x, second_y)])
+                line = shapely.LineString([(min_x, last_y), (last_x, last_y)])
                 inter = polygon.intersection(line)
                 self.mask_x_direction(inter, last_point, is_valid)
 
         logits[batch_no, :, ~is_valid] = -torch.inf
 
 
-    def mask_for_third_y_in_room(self, logits, batch_no):
-        first_x = self.cached_room_in_generation[batch_no][0]
-        first_y = self.cached_room_in_generation[batch_no][1]
+    def mask_for_nth_y_in_room(self, logits, batch_no):
+        second_to_last_x = self.cached_room_in_generation[batch_no][-5]
+        second_to_last_y = self.cached_room_in_generation[batch_no][-4]
 
-        second_x = self.cached_room_in_generation[batch_no][2]
-        second_y = self.cached_room_in_generation[batch_no][3]
+        last_x = self.cached_room_in_generation[batch_no][-3]
+        last_y = self.cached_room_in_generation[batch_no][-2]
 
-        third_x = self.cached_room_in_generation[batch_no][4]
+        prev_x = self.cached_room_in_generation[batch_no][-1]
 
         is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
 
-        second_y_token_id = tokens.coord_token_id(second_y)
+        second_y_token_id = tokens.coord_token_id(last_y)
 
-        if third_x != second_x:
+        if prev_x != last_x:
             is_valid[second_y_token_id] = True
 
         else:
             polygon = self.cached_remaining_empty_spaces[batch_no]
             (min_y, max_y) = self.geometry_y_bounds(polygon)
 
-            last_point = shapely.Point(second_x, second_y)
+            last_point = shapely.Point(last_x, last_y)
 
-            last_line_type = line_type(first_x, first_y, second_x, second_y)
+            last_line_type = line_type(second_to_last_x, second_to_last_y, last_x, last_y)
             assert last_line_type != LineType.Diagonal
 
             if last_line_type == LineType.Horizontal:
-                if second_y != min_y:
-                    line = shapely.LineString([(third_x, min_y), (third_x, second_y)])
+                if last_y != min_y:
+                    line = shapely.LineString([(prev_x, min_y), (prev_x, last_y)])
                     inter = polygon.intersection(line)
                     self.mask_y_direction(inter, last_point, is_valid)
 
-                if second_y != max_y:
-                    line = shapely.LineString([(third_x, max_y), (third_x, second_y)])
+                if last_y != max_y:
+                    line = shapely.LineString([(prev_x, max_y), (prev_x, last_y)])
                     inter = polygon.intersection(line)
                     self.mask_y_direction(inter, last_point, is_valid)
 
             else:
                 # Line is Vertical
-                if first_y < second_y:
-                    line = shapely.LineString([(third_x, second_y), (third_x, max_y)])
+                if second_to_last_y < last_y:
+                    line = shapely.LineString([(prev_x, last_y), (prev_x, max_y)])
                     inter = polygon.intersection(line)
                     self.mask_y_direction(inter, last_point, is_valid)
 
                 else:
-                    line = shapely.LineString([(third_x, second_y), (third_x, min_y)])
+                    line = shapely.LineString([(prev_x, last_y), (prev_x, min_y)])
                     inter = polygon.intersection(line)
                     self.mask_y_direction(inter, last_point, is_valid)
 
