@@ -32,8 +32,15 @@ def room_token(room_label: int) -> str:
 def coord_token_id(coord: int):
     return coord + ROOMS_CNT + CONT_TOKENS_CNT
 
+def coord_from_token_id(token_id: int):
+    return token_id - ROOMS_CNT - CONT_TOKENS_CNT
+
 def coord_token(coord: int) -> str:
     return f"<Coord {coord}>"
+
+
+MIN_ROOM_ID = room_token_id(0)
+MAX_ROOM_ID = room_token_id(ROOMS_CNT-1)
 
 
 MIN_COORD_ID = coord_token_id(0)

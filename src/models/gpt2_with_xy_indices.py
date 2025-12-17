@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from transformers import GPT2Config
-from .gpt2 import CustomGPT2
+from .custom_gpt2 import CustomGPT2
 
 import src.tokens as tokens
 
@@ -55,6 +55,7 @@ class GPT2ModelWithXYIndices(CustomGPT2):
             self.update_xy_indices_cache(xy_indices)
 
         result = super().forward(
+            input_ids=input_ids,
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             labels=labels,
