@@ -133,6 +133,10 @@ class CustomGPT2(GPT2LMHeadModel):
                     self.update_generated_room(input_ids, batch_no)
                     self.mask_for_third_x_in_room(logits, batch_no)
 
+                case TokenToGenerateType.ThirdYInRoom:
+                    self.update_generated_room(input_ids, batch_no)
+                    self.mask_for_third_y_in_room(logits, batch_no)
+
 
             self.cached_prev_token_to_gen[batch_no] = token_to_generate.value
             
@@ -299,8 +303,6 @@ class CustomGPT2(GPT2LMHeadModel):
         last_point = shapely.Point(second_x, second_y)
 
         if last_line_type == LineType.Vertical:
-            
-
             if second_x != min_x:
                 line = shapely.LineString([(min_x, second_y), (second_x, second_y)])
                 inter = polygon.intersection(line)
@@ -310,6 +312,17 @@ class CustomGPT2(GPT2LMHeadModel):
                 line = shapely.LineString([(second_x, second_y), (max_x, second_y)])
                 inter = polygon.intersection(line)
                 self.mask_x_direction(inter, last_point, is_valid)
+
+            # Checking if we can stay in the same x
+            if first_y < second_y:
+                next_y = second_y + 1
+            else:
+                next_y = second_y - 1
+
+            next_point = shapely.Point(second_x, next_y)
+            if not polygon.intersects(next_point):
+                token_id = tokens.coord_token_id(second_x)
+                is_valid[token_id] = False
 
         else:
             # Line is Horizontal
@@ -325,7 +338,59 @@ class CustomGPT2(GPT2LMHeadModel):
                 self.mask_x_direction(inter, last_point, is_valid)
 
         logits[batch_no, :, ~is_valid] = -torch.inf
-            
+
+
+    def mask_for_third_y_in_room(self, logits, batch_no):
+        first_x = self.cached_room_in_generation[batch_no][0]
+        first_y = self.cached_room_in_generation[batch_no][1]
+
+        second_x = self.cached_room_in_generation[batch_no][2]
+        second_y = self.cached_room_in_generation[batch_no][3]
+
+        third_x = self.cached_room_in_generation[batch_no][4]
+
+        is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
+
+        second_y_token_id = tokens.coord_token_id(second_y)
+
+        if third_x != second_x:
+            is_valid[second_y_token_id] = True
+
+        else:
+            polygon = self.cached_remaining_empty_spaces[batch_no]
+            (min_y, max_y) = self.geometry_y_bounds(polygon)
+
+            last_point = shapely.Point(second_x, second_y)
+
+            last_line_type = line_type(first_x, first_y, second_x, second_y)
+            assert last_line_type != LineType.Diagonal
+
+            if last_line_type == LineType.Horizontal:
+                if second_y != min_y:
+                    line = shapely.LineString([(third_x, min_y), (third_x, second_y)])
+                    inter = polygon.intersection(line)
+                    self.mask_y_direction(inter, last_point, is_valid)
+
+                if second_y != max_y:
+                    line = shapely.LineString([(third_x, max_y), (third_x, second_y)])
+                    inter = polygon.intersection(line)
+                    self.mask_y_direction(inter, last_point, is_valid)
+
+            else:
+                # Line is Vertical
+                if first_y < second_y:
+                    line = shapely.LineString([(third_x, second_y), (third_x, max_y)])
+                    inter = polygon.intersection(line)
+                    self.mask_y_direction(inter, last_point, is_valid)
+
+                else:
+                    line = shapely.LineString([(third_x, second_y), (third_x, min_y)])
+                    inter = polygon.intersection(line)
+                    self.mask_y_direction(inter, last_point, is_valid)
+
+            is_valid[second_y_token_id] = False
+
+        logits[batch_no, :, ~is_valid] = -torch.inf
 
     
     def init_cache(self, input_ids):
