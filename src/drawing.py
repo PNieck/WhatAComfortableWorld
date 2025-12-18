@@ -85,3 +85,28 @@ def draw_floor_plan(floor_plan: FloorPlan, draw_room_corners: bool = False):
     plt.title(f'Floor plan {floor_plan.name}')
 
     plt.show()
+
+
+def draw_floor_plan_to_image(floor_plan: FloorPlan, filename: str):
+    fig, ax = plt.subplots()
+
+    ax.axis("off")
+
+    for room in floor_plan.rooms:
+        p = Polygon(room.boundary, facecolor=_room2color[room.type], label=room.type.name)
+
+        ax.add_patch(p)
+
+    for room in floor_plan.rooms:
+        _draw_room_boundary(ax, room)
+
+    _draw_boundary(ax, floor_plan)
+    _draw_doors(ax, floor_plan)
+
+    plt.ylim(0, 250)
+    plt.xlim(0, 250)
+    plt.gca().invert_yaxis()
+
+    plt.savefig(filename)
+
+    plt.close()

@@ -39,6 +39,42 @@ class CoverageTest:
             if boundary_area == inter_area and diff_area == 0:
                 self.correct_floor_plans += 1
 
+    def filter_out(self, floor_plans: List[FloorPlan]) -> List[FloorPlan]:
+        result = []
+        
+        for floor_plan in floor_plans:
+            if self.measure_single_floor_plan(floor_plan):
+                result.append(floor_plan)
+
+        return result
+
+    def measure_single_floor_plan(self, floor_plan: FloorPlan) -> bool:
+        boundary_polygon = floor_plan.polygon()
+        rooms_polygons = floor_plan.rooms_polygons()
+
+        rooms_union = shapely.union_all(rooms_polygons)
+        intersection = shapely.intersection(boundary_polygon, rooms_union)
+        difference = shapely.difference(rooms_union, boundary_polygon)
+
+        boundary_area = boundary_polygon.area
+        inter_area = intersection.area
+        diff_area = difference.area
+
+        coverage_rate = inter_area / boundary_area
+        overfilling_rate = diff_area / boundary_area
+
+        self.coverage_rate_sum += coverage_rate
+        self.overfilling_rate_sum += overfilling_rate
+
+        self.examples_cnt += 1
+
+        if boundary_area == inter_area and diff_area == 0:
+            self.correct_floor_plans += 1
+            return True
+        
+        return False
+
+
     def avg_coverage_rate(self):
         if self.examples_cnt == 0:
             return math.nan

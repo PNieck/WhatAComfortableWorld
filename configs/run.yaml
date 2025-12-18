@@ -1,0 +1,30 @@
+general:
+  seed: 42
+
+paths:
+  input_data: "./data/gpt2_main/input/"
+
+preprocessing:
+  test_size: 0.05
+  validate_size: 0.005
+  data_augmentation:
+    - permutation:
+        percentage: 0.4
+    - symmetry:
+        percentage: 0.4
+    - rotation:
+        percentage: 0.4
+
+model:
+  input_model_path: "2025-12-15-21:14:50_main_gpt2_25_layers_ignore_prompt"
+
+training:
+  loop_type: "custom"
+  epochs: 150
+  lr: 1e-5
+  batch_size: 32
+  eval_steps: 500
+  log_comment: "_main_training"
+
+inference:
+  use_masked_inference: False
