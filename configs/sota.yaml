@@ -31,3 +31,5 @@ training:
   eval_steps: 500
   log_comment: "_main_training"
 
+inference:
+  use_masked_inference: True

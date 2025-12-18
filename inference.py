@@ -71,7 +71,8 @@ def main():
     narrow_spaces = NarrowSpacesTest()
     neighborhood = RoomsNeighborhoodTest()
 
-    generator = Generator(model, tokenizer, dataset)
+    # TODO: set bigger batch size
+    generator = Generator(model, tokenizer, dataset, 1)
 
     done = 0
     total = len(dataset["valid"])

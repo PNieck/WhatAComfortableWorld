@@ -1,6 +1,8 @@
 from enum import Enum
+import tokenize
 from typing import List
 
+import shapely.validation
 import torch
 import shapely
 from shapely.ops import linemerge
@@ -10,7 +12,7 @@ import src.tokens as tokens
 from src.floor_plan_tokenizer import FloorPlanTokenizer
 from src.floor_plan import RoomType
 from src.sequence.from_sequence import boundary_from_sequence
-from src.geom_utils import LineType, line_type
+from src.geom_utils import LineType, line_type, create_line
 
 
 def get_gpt2_config(config) -> GPT2Config:
@@ -98,13 +100,6 @@ class CustomGPT2(GPT2LMHeadModel):
         assert use_cache == True, "Not using cache is not supported"
         assert input_ids is not None
 
-        # Initial masking
-        logits[:, :, tokens.START_SEQ_TOKEN_ID] = -torch.inf
-        logits[:, :, tokens.UNK_TOKEN_ID] = -torch.inf
-        logits[:, :, tokens.PAD_TOKEN_ID] = -torch.inf
-        logits[:, :, tokens.BOUNDARY_TOKEN_ID] = -torch.inf
-        logits[:, :, tokens.DOOR_TOKEN_ID] = -torch.inf
-
         for batch_no in range(logits.shape[0]):
             token_to_generate = self.get_token_to_generate_type(input_ids, batch_no)
 
@@ -119,7 +114,7 @@ class CustomGPT2(GPT2LMHeadModel):
 
                 case TokenToGenerateType.FirstYInRoom:
                     self.update_generated_room(input_ids, batch_no)
-                    self.mask_for_first_y_in_room(input_ids, logits, batch_no)
+                    self.mask_for_first_y_in_room(logits, batch_no)
 
                 case TokenToGenerateType.SecondXInRoom:
                     self.update_generated_room(input_ids, batch_no)
@@ -132,12 +127,25 @@ class CustomGPT2(GPT2LMHeadModel):
                 case TokenToGenerateType.ThirdXInRoom | TokenToGenerateType.FourthXInRoom:
                     self.update_generated_room(input_ids, batch_no)
                     self.mask_for_nth_x_in_room(logits, batch_no)
+                    self.invalidate_room_end(logits, batch_no)
 
                 case TokenToGenerateType.ThirdYInRoom | TokenToGenerateType.FourthYInRoom:
                     self.update_generated_room(input_ids, batch_no)
                     self.mask_for_nth_y_in_room(logits, batch_no)
+                    self.invalidate_room_end(logits, batch_no)
 
+                case TokenToGenerateType.NthXInRoom:
+                    self.update_generated_room(input_ids, batch_no)
+                    self.mask_for_nth_x_in_room(logits, batch_no)
+                    self.check_possible_room_end(logits, batch_no)
 
+                case TokenToGenerateType.NthYInRoom:
+                    self.update_generated_room(input_ids, batch_no)
+                    self.mask_for_nth_y_in_room(logits, batch_no)
+                    self.invalidate_room_end(logits, batch_no)
+
+                case TokenToGenerateType.EndToken:
+                    self.mask_for_end_token(logits, batch_no)
 
 
             self.cached_prev_token_to_gen[batch_no] = token_to_generate.value
@@ -146,29 +154,39 @@ class CustomGPT2(GPT2LMHeadModel):
         return logits
 
 
-    def get_token_to_generate_type(self, input_ids, batch_no) -> TokenToGenerateType:
-        if self.cached_remaining_empty_spaces is None:
+    def get_token_to_generate_type(self, input_ids: torch.Tensor, batch_no) -> TokenToGenerateType:
+        if input_ids.shape[1] > 1:                  # We are assuming using kv caching
             return TokenToGenerateType.FirstRoom
         
         id = input_ids[batch_no, 0]
         if id >= tokens.MIN_ROOM_ID and id <= tokens.MAX_ROOM_ID:
+            self.finish_room_generation(batch_no)
+            if self.cached_remaining_empty_spaces[batch_no].is_empty:
+                return TokenToGenerateType.EndToken
+
             return TokenToGenerateType.FirstXInRoom
         
-        result = TokenToGenerateType(self.cached_prev_token_to_gen[batch_no].item() + 1)
-        if result.value >= TokenToGenerateType.NthXInRoom.value:
-            if self.cached_remaining_empty_spaces[batch_no].is_empty:
-                result = TokenToGenerateType.EndToken
-            
-            elif result.value == TokenToGenerateType.EndToken.value:
-                result = TokenToGenerateType.NthXInRoom
+        cached_token = self.cached_prev_token_to_gen[batch_no].item()
+        if cached_token == TokenToGenerateType.EndToken.value:
+            return TokenToGenerateType.EndToken
+        
+        result = TokenToGenerateType(cached_token + 1)
+        if result.value == TokenToGenerateType.EndToken.value:
+            result = TokenToGenerateType.NthXInRoom
             
         return result
 
 
     def mask_for_first_room(self, logits: torch.Tensor):
+        logits[:, :, tokens.START_SEQ_TOKEN_ID] = -torch.inf
+        logits[:, :, tokens.UNK_TOKEN_ID] = -torch.inf
+        logits[:, :, tokens.PAD_TOKEN_ID] = -torch.inf
+        logits[:, :, tokens.BOUNDARY_TOKEN_ID] = -torch.inf
+        logits[:, :, tokens.DOOR_TOKEN_ID] = -torch.inf
+
         logits[:, :, tokens.MIN_COORD_ID:tokens.MAX_COORD_ID] = -torch.inf
         logits[:, :, tokens.END_SEQ_TOKEN_ID] = -torch.inf
-    
+
 
     def mask_for_first_x_in_room(self, logits, batch_no):
         polygon = self.cached_remaining_empty_spaces[batch_no]
@@ -186,13 +204,13 @@ class CustomGPT2(GPT2LMHeadModel):
         logits[batch_no, :, ~is_valid] = -torch.inf
 
     
-    def mask_for_first_y_in_room(self, input_ids, logits, batch_no):
+    def mask_for_first_y_in_room(self, logits, batch_no):
         polygon = self.cached_remaining_empty_spaces[batch_no]
         (_, min_y, _, max_y) = polygon.bounds
 
-        x = tokens.coord_from_token_id(input_ids[batch_no, 0])
+        x = self.cached_room_in_generation[batch_no][0]
 
-        line = shapely.LineString([(x, min_y), (x, max_y)])
+        line = create_line((x, min_y), (x, max_y))
         intersection = polygon.intersection(line)
         if intersection.geom_type == "MultiLineString":
             intersection = linemerge(intersection)
@@ -204,8 +222,6 @@ class CustomGPT2(GPT2LMHeadModel):
         if intersection.geom_type == "LineString":
             (min_y, max_y) = self.geometry_y_bounds(intersection)
 
-            assert len(intersection.coords) == 2
-
             min_token = tokens.coord_token_id(min_y)
             max_token = tokens.coord_token_id(max_y)
 
@@ -214,8 +230,6 @@ class CustomGPT2(GPT2LMHeadModel):
         elif intersection.geom_type == "MultiLineString":
             for line in intersection.geoms:
                 (min_y, max_y) = self.geometry_y_bounds(line)
-                
-                assert len(intersection.coords) == 2
 
                 min_token = tokens.coord_token_id(min_y)
                 max_token = tokens.coord_token_id(max_y)
@@ -240,12 +254,12 @@ class CustomGPT2(GPT2LMHeadModel):
         is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
 
         if first_x != min_x:
-            line = shapely.LineString([(min_x, first_y), (first_x, first_y)])
+            line = create_line((min_x, first_y), (first_x, first_y))
             inter = polygon.intersection(line)
             self.mask_x_direction(inter, first_point, is_valid)
 
         if first_x != max_x:
-            line = shapely.LineString([(first_x, first_y), (max_x, first_y)])
+            line = create_line((first_x, first_y), (max_x, first_y))
             inter = polygon.intersection(line)
             self.mask_x_direction(inter, first_point, is_valid)
                 
@@ -273,12 +287,12 @@ class CustomGPT2(GPT2LMHeadModel):
             first_point = shapely.Point(first_x, first_y)
 
             if first_y != min_y:
-                line = shapely.LineString([(last_x, min_y), (last_x, first_y)])
+                line = create_line((last_x, min_y), (last_x, first_y))
                 inter = polygon.intersection(line)
                 self.mask_y_direction(inter, first_point, is_valid)
 
             if first_x != max_y:
-                line = shapely.LineString([(last_x, first_y), (last_x, max_y)])
+                line = create_line((last_x, first_y), (last_x, max_y))
                 inter = polygon.intersection(line)
                 self.mask_y_direction(inter, first_point, is_valid)
 
@@ -297,7 +311,7 @@ class CustomGPT2(GPT2LMHeadModel):
         last_line_type = line_type(second_to_last_x, second_to_last_y, last_x, last_y)
         assert last_line_type != LineType.Diagonal
 
-        is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
+        is_valid = self.get_is_valid_tensor_with_rooms()
 
         polygon = self.cached_remaining_empty_spaces[batch_no]
         (min_x, max_x) = self.geometry_x_bounds(polygon)
@@ -306,12 +320,12 @@ class CustomGPT2(GPT2LMHeadModel):
 
         if last_line_type == LineType.Vertical:
             if last_x != min_x:
-                line = shapely.LineString([(min_x, last_y), (last_x, last_y)])
+                line = create_line((min_x, last_y), (last_x, last_y))
                 inter = polygon.intersection(line)
                 self.mask_x_direction(inter, last_point, is_valid)
 
             if last_x != max_x:
-                line = shapely.LineString([(last_x, last_y), (max_x, last_y)])
+                line = create_line((last_x, last_y), (max_x, last_y))
                 inter = polygon.intersection(line)
                 self.mask_x_direction(inter, last_point, is_valid)
 
@@ -330,12 +344,12 @@ class CustomGPT2(GPT2LMHeadModel):
             # Line is Horizontal
 
             if second_to_last_x < last_x:
-                line = shapely.LineString([(last_x, last_y), (max_x, last_y)])
+                line = create_line((last_x, last_y), (max_x, last_y))
                 inter = polygon.intersection(line)
                 self.mask_x_direction(inter, last_point, is_valid)
 
             else:
-                line = shapely.LineString([(min_x, last_y), (last_x, last_y)])
+                line = create_line((min_x, last_y), (last_x, last_y))
                 inter = polygon.intersection(line)
                 self.mask_x_direction(inter, last_point, is_valid)
 
@@ -351,7 +365,7 @@ class CustomGPT2(GPT2LMHeadModel):
 
         prev_x = self.cached_room_in_generation[batch_no][-1]
 
-        is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
+        is_valid = self.get_is_valid_tensor_with_rooms()
 
         second_y_token_id = tokens.coord_token_id(last_y)
 
@@ -369,30 +383,54 @@ class CustomGPT2(GPT2LMHeadModel):
 
             if last_line_type == LineType.Horizontal:
                 if last_y != min_y:
-                    line = shapely.LineString([(prev_x, min_y), (prev_x, last_y)])
+                    line = create_line((prev_x, min_y), (prev_x, last_y))
                     inter = polygon.intersection(line)
                     self.mask_y_direction(inter, last_point, is_valid)
 
                 if last_y != max_y:
-                    line = shapely.LineString([(prev_x, max_y), (prev_x, last_y)])
+                    line = create_line((prev_x, max_y), (prev_x, last_y))
                     inter = polygon.intersection(line)
                     self.mask_y_direction(inter, last_point, is_valid)
 
             else:
                 # Line is Vertical
                 if second_to_last_y < last_y:
-                    line = shapely.LineString([(prev_x, last_y), (prev_x, max_y)])
+                    line = create_line((prev_x, last_y), (prev_x, max_y))
                     inter = polygon.intersection(line)
                     self.mask_y_direction(inter, last_point, is_valid)
 
                 else:
-                    line = shapely.LineString([(prev_x, last_y), (prev_x, min_y)])
+                    line = create_line((prev_x, last_y), (prev_x, min_y))
                     inter = polygon.intersection(line)
                     self.mask_y_direction(inter, last_point, is_valid)
 
             is_valid[second_y_token_id] = False
 
         logits[batch_no, :, ~is_valid] = -torch.inf
+
+
+    def mask_for_end_token(self, logits, batch_no):
+        mask = torch.ones(len(self.tokenizer), dtype=torch.bool)
+        mask[tokens.END_SEQ_TOKEN_ID] = False
+
+        logits[batch_no, :, mask] = -torch.inf
+
+
+    def invalidate_room_end(self, logits, batch_no):
+        logits[batch_no, :, tokens.MIN_ROOM_ID:(tokens.MAX_ROOM_ID+1)] = -torch.inf
+
+
+    def check_possible_room_end(self, logits, batch_no):
+        first_x = self.cached_room_in_generation[batch_no][0]
+        first_y = self.cached_room_in_generation[batch_no][1]
+
+        last_x = self.cached_room_in_generation[batch_no][-2]
+        last_y = self.cached_room_in_generation[batch_no][-1]
+
+        ending_line_type = line_type(first_x, first_y, last_x, last_y)
+
+        if ending_line_type == LineType.Diagonal:
+            self.invalidate_room_end(logits, batch_no)
 
     
     def init_cache(self, input_ids):
@@ -540,3 +578,29 @@ class CustomGPT2(GPT2LMHeadModel):
         max_y = int(max_y)
 
         return (min_y, max_y)
+    
+
+    def get_is_valid_tensor_with_rooms(self) -> torch.Tensor:
+        result = torch.zeros(len(self.tokenizer), dtype=torch.bool)
+
+        # Make room tokens valid
+        result[tokens.MIN_ROOM_ID:(tokens.MAX_ROOM_ID+1)] = True
+
+        return result
+    
+
+    def finish_room_generation(self, batch_no):
+        if len(self.cached_room_in_generation[batch_no]) == 0:
+            return
+        
+        corners = torch.Tensor(self.cached_room_in_generation[batch_no])
+        corners = corners.view(-1, 2)
+
+        room = shapely.Polygon(corners)
+        if not room.is_valid:
+            print(shapely.validation.explain_validity(room))
+            room = shapely.make_valid(room)
+
+        self.cached_remaining_empty_spaces[batch_no] = self.cached_remaining_empty_spaces[batch_no].difference(room)
+
+        self.cached_room_in_generation[batch_no] = []
