@@ -19,7 +19,7 @@ def _coords_from_sequence(seq: str):
     return result
 
 
-def _boundary_from_sequence(seq: str) -> np.ndarray:
+def boundary_from_sequence(seq: str) -> np.ndarray:
     match = re.search(r"<Bound>(<Coord \d+>)+", seq)
     if not match:
         raise NoBoundaryError()
@@ -31,7 +31,7 @@ def _boundary_from_sequence(seq: str) -> np.ndarray:
     return result
 
 
-def _door_from_sequence(seq: str) -> FrontDoor:
+def door_from_sequence(seq: str) -> FrontDoor:
     match = re.search(r"<Door>(<Coord \d+>)+", seq)
     if not match:
         raise NoFrontDoorsError()
@@ -66,8 +66,8 @@ def _rooms_from_sequence(seq: str) -> List[Room]:
 
 
 def from_sequence(seq: str, name: str ="") -> FloorPlan:
-    boundary = _boundary_from_sequence(seq)
-    doors = _door_from_sequence(seq)
+    boundary = boundary_from_sequence(seq)
+    doors = door_from_sequence(seq)
     rooms = _rooms_from_sequence(seq)
 
     return FloorPlan(name, boundary, doors, rooms)

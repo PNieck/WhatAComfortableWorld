@@ -1,5 +1,7 @@
 from enum import Enum
 
+import shapely
+
 
 class TurnType(Enum):
     Left = 0
@@ -26,3 +28,26 @@ def turn_type(p1, p2, p3) -> TurnType:
         return TurnType.Right
     else:
         return TurnType.Straight
+    
+
+class LineType(Enum):
+    Horizontal = 0
+    Vertical = 1
+    Diagonal = 2
+
+
+def line_type(x1, y1, x2, y2) -> LineType:
+    if y1 == y2:
+        return LineType.Horizontal
+    
+    if x1 == x2:
+        return LineType.Vertical
+    
+    return LineType.Diagonal
+
+
+def create_line(p1, p2):
+    if p1 == p2:
+        return shapely.Point(p1)
+    
+    return shapely.LineString([p1, p2])

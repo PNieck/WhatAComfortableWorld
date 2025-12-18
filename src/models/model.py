@@ -10,7 +10,7 @@ from transformers import (
 import torch.nn as nn
 
 from .gemma3 import get_gemma3
-from .gpt2 import get_gpt2, get_gpt2_config, CustomGPT2
+from .custom_gpt2 import get_gpt2, get_gpt2_config, CustomGPT2
 from .gpt2_with_xy_indices import GPT2ModelWithXYIndices
 from .gpt2_with_corners_indices import GPT2ModelWithCornerIndices
 

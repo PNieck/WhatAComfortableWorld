@@ -44,12 +44,16 @@ def main():
 
     paths_config = config["paths"]
     model_config = config["model"]
+    inference_config = config["inference"]
 
     tokenizer = FloorPlanTokenizer()
     model_config = preprocess_model_config(model_config, tokenizer)
     model = get_pretrained_model(model_config)
     print_model_size(model)
     print(model)
+
+    if "use_masked_inference" in inference_config:
+        model.use_masked_inference = inference_config["use_masked_inference"]
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Using device: {device}')
@@ -67,7 +71,8 @@ def main():
     narrow_spaces = NarrowSpacesTest()
     neighborhood = RoomsNeighborhoodTest()
 
-    generator = Generator(model, tokenizer, dataset)
+    # TODO: set bigger batch size
+    generator = Generator(model, tokenizer, dataset, 1)
 
     done = 0
     total = len(dataset["valid"])
