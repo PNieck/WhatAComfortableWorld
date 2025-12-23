@@ -9,7 +9,7 @@ import torch
 
 from src.floor_plan_tokenizer import FloorPlanTokenizer
 from src.generation import Generator
-from src.drawing import draw_floor_plan
+from src.drawing import draw_floor_plan, draw_floor_plan_to_image
 from src.dataset_loader import load_floor_plans_dataset, Split
 from src.models import (
     print_model_size,
@@ -25,7 +25,9 @@ from src.validation_metrics import (
     RequiredRoomsTest,
     NarrowSpacesTest,
     GeometrySimplicityTest,
-    RoomsNeighborhoodTest
+    RoomsNeighborhoodTest,
+    BaseMetrics,
+    ErgonomicsTest
 )
 
 
@@ -70,6 +72,8 @@ def main():
     required_rooms = RequiredRoomsTest()
     narrow_spaces = NarrowSpacesTest()
     neighborhood = RoomsNeighborhoodTest()
+    base_metrics = BaseMetrics()
+    ergonomics = ErgonomicsTest()
 
     # TODO: set bigger batch size
     generator = Generator(model, tokenizer, dataset, 1)
@@ -77,6 +81,7 @@ def main():
     done = 0
     total = len(dataset["valid"])
 
+    i = 0
     for batch in generator.generate_in_batches():
         floor_plans = pars_rate.parse(batch)
         floor_plans = validity_rate.filter_out_invalid(floor_plans)
@@ -86,6 +91,12 @@ def main():
         required_rooms.measure(floor_plans)
         narrow_spaces.measure(floor_plans)
         neighborhood.measure(floor_plans)
+        base_metrics.measure(batch)
+        ergonomics.measure(floor_plans)
+
+        # for floor_plan in floor_plans:
+        #     draw_floor_plan_to_image(floor_plan, f"data/imgs/generated_masked/{i}.png")
+        #     i += 1
 
         done += len(batch)
         print(f"Done {done}/{total}")
@@ -118,6 +129,9 @@ def main():
     print(f"Floor plans with no overlapping rooms: {room_overlap_rate.correct_floor_plans}/{room_overlap_rate.examples_cnt}")
 
     print("\n")
+    base_metrics.print_results()
+
+    print("\n")
     print(f"Required rooms rate: {required_rooms.correctness_rate()}")
     print(f"Floor plans with all required rooms: {required_rooms.correct_floor_plans}/{required_rooms.examples_cnt}")
     required_rooms.print_missing_rooms()
@@ -130,6 +144,12 @@ def main():
     print(f"Perfect neighborhood floor plans: {neighborhood.perfect_floor_plans}/{neighborhood.examples_cnt}")
     if neighborhood.nan_losses > 0:
         print(f"Nan neighbor losses: {neighborhood.nan_losses}")
+
+    print("\n")
+    print(f"Avg ergonomics loss: {ergonomics.avg_loss()}")
+    print(f"Perfect ergonomics floor plans: {ergonomics.perfect_floor_plans}/{ergonomics.examples_cnt}")
+    if ergonomics.nan_losses > 0:
+        print(f"Nan neighbor losses: {ergonomics.nan_losses}")
 
 if __name__ == "__main__":
     main()

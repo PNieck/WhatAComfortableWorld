@@ -29,3 +29,5 @@ trainer_output/
 # Tensorboard logs
 runs/
 legacy_runs/
+
+imgs/
