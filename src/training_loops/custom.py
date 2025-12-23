@@ -88,7 +88,7 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
     print(f'Using device: {device}')
     model.to(device)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5, weight_decay=0.01)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], weight_decay=0.01)
 
     loss_fun = get_loss(config, tokenizer)
 
