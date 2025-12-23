@@ -99,11 +99,12 @@ def main():
     print("Starting training…")
     train(model, tokenizer, tokenized_dataset, train_config, log_writer)
 
+    print("Saving model")
+    model.save_pretrained(log_dir + "model/")
+
     print("Validating model…")
     dataset = load_floor_plans_dataset(paths_config["input_data"], Split.VALID)
     validate(model, tokenizer, dataset, train_config, model_config, log_writer)
-    print("Saving model")
-    model.save_pretrained(log_dir + "model/")
 
     print(f"\nAll done.")
 
