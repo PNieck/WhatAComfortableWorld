@@ -26,7 +26,8 @@ from src.validation_metrics import (
     NarrowSpacesTest,
     GeometrySimplicityTest,
     RoomsNeighborhoodTest,
-    BaseMetrics
+    BaseMetrics,
+    ErgonomicsTest
 )
 
 
@@ -72,6 +73,7 @@ def main():
     narrow_spaces = NarrowSpacesTest()
     neighborhood = RoomsNeighborhoodTest()
     base_metrics = BaseMetrics()
+    ergonomics = ErgonomicsTest()
 
     # TODO: set bigger batch size
     generator = Generator(model, tokenizer, dataset, 1)
@@ -90,9 +92,10 @@ def main():
         narrow_spaces.measure(floor_plans)
         neighborhood.measure(floor_plans)
         base_metrics.measure(batch)
+        ergonomics.measure(floor_plans)
 
         # for floor_plan in floor_plans:
-        #     draw_floor_plan_to_image(floor_plan, f"imgs/generated/{i}.png")
+        #     draw_floor_plan_to_image(floor_plan, f"data/imgs/generated_masked/{i}.png")
         #     i += 1
 
         done += len(batch)
@@ -141,6 +144,12 @@ def main():
     print(f"Perfect neighborhood floor plans: {neighborhood.perfect_floor_plans}/{neighborhood.examples_cnt}")
     if neighborhood.nan_losses > 0:
         print(f"Nan neighbor losses: {neighborhood.nan_losses}")
+
+    print("\n")
+    print(f"Avg ergonomics loss: {ergonomics.avg_loss()}")
+    print(f"Perfect ergonomics floor plans: {ergonomics.perfect_floor_plans}/{ergonomics.examples_cnt}")
+    if ergonomics.nan_losses > 0:
+        print(f"Nan neighbor losses: {ergonomics.nan_losses}")
 
 if __name__ == "__main__":
     main()

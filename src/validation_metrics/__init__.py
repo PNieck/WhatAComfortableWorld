@@ -7,3 +7,4 @@ from .required_rooms import RequiredRoomsTest
 from .narrow_spaces import NarrowSpacesTest
 from .geometry_simplicity import GeometrySimplicityTest
 from .rooms_neighborhood import RoomsNeighborhoodTest
+from .ergonimics import ErgonomicsTest
