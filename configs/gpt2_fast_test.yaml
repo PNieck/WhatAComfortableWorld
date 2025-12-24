@@ -28,8 +28,13 @@ model:
 training:
   loop_type: "custom"
   epochs: 10
-  lr: 1e-6
+  lr: 1e-4
   batch_size: 32
   eval_steps: 2
   checkpointing_frequency: 3  # checkpoint every n epochs
   log_comment: "_fast_test_training"
+  lr_scheduler:
+    type: "cyclic"
+    base_lr: 1e-8
+    max_lr: 1e-4
+    cycles: 3

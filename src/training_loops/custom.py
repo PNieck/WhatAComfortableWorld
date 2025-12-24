@@ -4,13 +4,12 @@ import torch.nn as nn
 
 from tqdm.auto import tqdm
 
-from transformers import (
-    DataCollatorForLanguageModeling,
-    get_scheduler
-)
+from transformers import DataCollatorForLanguageModeling
 
 from src.log_writer import LogWriter
 from src.losses import get_loss
+
+from .lr_schedulers import get_lr_scheduler
 
 
 def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
@@ -88,18 +87,13 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
     print(f'Using device: {device}')
     model.to(device)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], weight_decay=0.01)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=float(config["lr"]), weight_decay=0.01)
 
     loss_fun = get_loss(config, tokenizer)
 
     num_epochs = config["epochs"]
     num_training_steps = num_epochs * len(train_dataloader)
-    lr_scheduler = get_scheduler(
-        "linear",
-        optimizer=optimizer,
-        num_warmup_steps=0,
-        num_training_steps=num_training_steps,
-    )
+    lr_scheduler = get_lr_scheduler(config, optimizer, num_training_steps)
 
     progress_bar = tqdm(range(num_training_steps))
 

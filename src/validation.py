@@ -41,6 +41,7 @@ def validate(
     hparams.pop("eval_steps", None)
     hparams.pop("log_comment", None)
     hparams.pop("name", None)
+    hparams.pop("lr_scheduler", None)
 
     metrics = {}
 
