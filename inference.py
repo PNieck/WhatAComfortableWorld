@@ -118,36 +118,32 @@ def main():
     print("\n")
     print(f"Room coverage: {cov_rate.avg_coverage_rate()}")
     print(f"Overfill rate {cov_rate.avg_overfilling_rate()}")
-    print(f"Fully covered floor plans: {cov_rate.correct_floor_plans}/{cov_rate.examples_cnt}")
+    print(f"Fully covered floor plans: {cov_rate.correct_floor_plans}/{cov_rate.examples_cnt} ({cov_rate.correctness_rate()}%)")
 
     print("\n")
     print(f"Rooms avg overlapping rate: {room_overlap_rate.avg_overlapping_rate()}")
-    print(f"Floor plans with no overlapping rooms: {room_overlap_rate.correct_floor_plans}/{room_overlap_rate.examples_cnt}")
-
-    print("\n")
-    print(f"Rooms avg overlapping rate: {room_overlap_rate.avg_overlapping_rate()}")
-    print(f"Floor plans with no overlapping rooms: {room_overlap_rate.correct_floor_plans}/{room_overlap_rate.examples_cnt}")
+    print(f"Floor plans with no overlapping rooms: {room_overlap_rate.correct_floor_plans}/{room_overlap_rate.examples_cnt} ({room_overlap_rate.correctness_rate()}%)")
 
     print("\n")
     base_metrics.print_results()
 
     print("\n")
     print(f"Required rooms rate: {required_rooms.correctness_rate()}")
-    print(f"Floor plans with all required rooms: {required_rooms.correct_floor_plans}/{required_rooms.examples_cnt}")
+    print(f"Floor plans with all required rooms: {required_rooms.correct_floor_plans}/{required_rooms.examples_cnt} ({required_rooms.correctness_rate()}%)")
     required_rooms.print_missing_rooms()
 
     print("\n")
-    print(f"Floor plans with no narrow spaces: {narrow_spaces.correct_cnt}/{narrow_spaces.examples_cnt}")
+    print(f"Floor plans with no narrow spaces: {narrow_spaces.correct_cnt}/{narrow_spaces.examples_cnt} ({narrow_spaces.correctness_rate()}%)")
 
     print("\n")
     print(f"Avg neighborhood loss: {neighborhood.avg_loss()}")
-    print(f"Perfect neighborhood floor plans: {neighborhood.perfect_floor_plans}/{neighborhood.examples_cnt}")
+    print(f"Perfect neighborhood floor plans: {neighborhood.perfect_floor_plans}/{neighborhood.examples_cnt} ({neighborhood.correctness_rate()}%)")
     if neighborhood.nan_losses > 0:
         print(f"Nan neighbor losses: {neighborhood.nan_losses}")
 
     print("\n")
     print(f"Avg ergonomics loss: {ergonomics.avg_loss()}")
-    print(f"Perfect ergonomics floor plans: {ergonomics.perfect_floor_plans}/{ergonomics.examples_cnt}")
+    print(f"Perfect ergonomics floor plans: {ergonomics.perfect_floor_plans}/{ergonomics.examples_cnt} ({ergonomics.correctness_rate()}%)")
     if ergonomics.nan_losses > 0:
         print(f"Nan neighbor losses: {ergonomics.nan_losses}")
 

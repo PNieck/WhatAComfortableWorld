@@ -12,7 +12,6 @@ class RoomsNeighborhoodTest():
         self.loss_sum = 0
 
         self.examples_cnt = 0
-        self.correct_floor_plans = 0
         self.perfect_floor_plans = 0
 
         self.nan_losses = 0
@@ -46,6 +45,13 @@ class RoomsNeighborhoodTest():
             return math.nan
         
         return self.loss_sum / self.examples_cnt
+    
+
+    def correctness_rate(self) -> float:
+        if self.examples_cnt == 0:
+            return 0.0
+        
+        return self.perfect_floor_plans / self.examples_cnt
     
 
     def add_to_metrics(self, metrics: dict):

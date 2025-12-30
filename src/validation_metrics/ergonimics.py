@@ -41,6 +41,13 @@ class ErgonomicsTest:
                 self.perfect_floor_plans += 1
 
 
+    def correctness_rate(self) -> float:
+        if self.examples_cnt == 0:
+            return 0.0
+        
+        return self.perfect_floor_plans / self.examples_cnt
+
+
     def _entrance_loss(self, floor_plan: FloorPlan) -> tuple[float, int]:
         entrances = floor_plan.rooms_of_type(RoomType.Entrance)
         if not entrances:
