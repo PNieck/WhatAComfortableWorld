@@ -40,7 +40,7 @@ class GPT2ModelWithCornerIndices(GPT2ModelWithXYIndices):
         else:
             xy_indices = None
 
-        too_big_corners_indices = corner_indices < self.MAX_CORNERS
+        too_big_corners_indices = corner_indices >= self.MAX_CORNERS
         if torch.any(too_big_corners_indices):
             corner_indices = torch.where(too_big_corners_indices, corner_indices, self.MAX_CORNERS-1)
             print("Warning: too big corner indices")

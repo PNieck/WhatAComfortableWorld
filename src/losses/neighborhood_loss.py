@@ -42,8 +42,9 @@ class NeighborhoodLoss:
         
         with torch.no_grad():
             for batch in train_dataloader:
-                for i in range(len(batch)):
-                    batch_labels: torch.Tensor = batch["labels"][i]
+                labels = batch["labels"]
+                for i in range(labels.shape[0]):
+                    batch_labels: torch.Tensor = labels[i]
 
                     ergo_loss = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
                     self.max_ergo_loss = max(self.max_ergo_loss, ergo_loss)
