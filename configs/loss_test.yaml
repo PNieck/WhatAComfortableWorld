@@ -1,0 +1,41 @@
+general:
+  seed: 42
+
+paths:
+  input_data: "./data/gpt2_main/input/"
+
+preprocessing:
+  test_size: 0.05
+  validate_size: 0.05
+  data_augmentation:
+    - permutation:
+        percentage: 0.4
+    - symmetry:
+        percentage: 0.4
+    - rotation:
+        percentage: 0.4
+
+model:
+  name: "gpt2_main_model"
+  type: "gpt2"
+  with_corner_indices: True
+  with_xy_indices: True
+  max_seq_len: 320
+  n_layer: 25
+  n_head: 16
+  n_embd: 256   # embedding and hidden states dimension
+
+training:
+  loop_type: "custom"
+  epochs: 20
+  lr: 1e-5
+  batch_size: 32
+  eval_steps: 500
+  log_comment: "_main_gpt2_25_layers_cyclic_corners"
+  checkpointing_frequency: 9  # checkpoint every n epochs
+  loss: "NeighborhoodLoss"
+  lr_scheduler:
+    type: "cyclic"
+    base_lr: 1e-12
+    max_lr: 1e-5
+    cycles: 3

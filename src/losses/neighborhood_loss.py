@@ -35,6 +35,10 @@ class NeighborhoodLoss:
 
         self.max_ergo_loss = torch.ones(1, device=device) * 5.0
 
+        if device.type == "cuda":
+            self.s1 = torch.cuda.Stream()
+            self.s2 = torch.cuda.Stream()
+
 
     def update_max_ergo_loss(self, train_dataloader: DataLoader, device):
         self.max_ergo_loss = torch.zeros(1, device=device)
@@ -64,8 +68,6 @@ class NeighborhoodLoss:
             floor_plan_ergo = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
             weight = 1.0 - floor_plan_ergo / self.max_ergo_loss
 
-            
-
             std_loss = self.cc_loss(batch_logits.unsqueeze(0), batch_labels.unsqueeze(0))
 
             if weight < 1.0:
@@ -94,7 +96,7 @@ class NeighborhoodLoss:
         return loss
 
 
-    def _get_prediction(self, labels, logits):
+    def _get_prediction(self, labels: torch.Tensor, logits: torch.Tensor):
         device = labels.device
 
         probs = F.softmax(logits,-1)
@@ -154,10 +156,22 @@ class NeighborhoodLoss:
     def _ergonomic_loss(self, plan_ids: torch.Tensor):
         device = plan_ids.device
 
-        entrance_loss = torch.sum(self._entrance_loss(plan_ids))
-        kitchen_loss = torch.sum(self._kitchens_loss(plan_ids))
-        bathrooms_loss = torch.sum(self._bathroom_loss(plan_ids))
-        balconies_loss = torch.sum(self._balconies_loss(plan_ids))
+        if device.type == "cpu":
+            entrance_loss = torch.sum(self._entrance_loss(plan_ids))
+            kitchen_loss = torch.sum(self._kitchens_loss(plan_ids))
+            bathrooms_loss = torch.sum(self._bathroom_loss(plan_ids))
+            balconies_loss = torch.sum(self._balconies_loss(plan_ids))
+
+        elif device.type == "cuda":
+            with torch.cuda.stream(self.s1):
+                entrance_loss = torch.sum(self._entrance_loss(plan_ids))
+                bathrooms_loss = torch.sum(self._bathroom_loss(plan_ids))
+
+            with torch.cuda.stream(self.s2):
+                kitchen_loss = torch.sum(self._kitchens_loss(plan_ids))
+                balconies_loss = torch.sum(self._balconies_loss(plan_ids))
+
+            torch.cuda.synchronize()
 
         valid_losses = torch.zeros(1, device=device)
         ergo_loss = torch.zeros(1, device=device)
