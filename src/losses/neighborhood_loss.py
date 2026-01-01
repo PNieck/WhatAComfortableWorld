@@ -41,7 +41,10 @@ class NeighborhoodLoss:
         
         with torch.no_grad():
             for batch in train_dataloader:
-                labels = batch["labels"]
+                labels: torch.Tensor = batch["labels"]
+                if labels.device != device:
+                    labels = labels.to(device)
+
                 for i in range(labels.shape[0]):
                     batch_labels: torch.Tensor = labels[i]
 
@@ -122,11 +125,12 @@ class NeighborhoodLoss:
         return interp_val, is_valid
     
 
-    def _is_prompt(self, labels: torch.Tensor):        
+    def _is_prompt(self, labels: torch.Tensor):
+        device = labels.device     
         idx = torch.where(labels == tokens.DOOR_TOKEN_ID)[0]
         idx += 4
 
-        indices = torch.arange(labels.size(0))
+        indices = torch.arange(labels.size(0), device=device)
 
         return indices <= idx
     
@@ -155,7 +159,7 @@ class NeighborhoodLoss:
         bathrooms_loss = torch.sum(self._bathroom_loss(plan_ids))
         balconies_loss = torch.sum(self._balconies_loss(plan_ids))
 
-        valid_losses = 0
+        valid_losses = torch.zeros(1, device=device)
         ergo_loss = torch.zeros(1, device=device)
 
         if entrance_loss >= 0.0:
