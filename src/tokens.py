@@ -32,7 +32,7 @@ def room_token(room_label: int) -> str:
 def coord_token_id(coord: int):
     return coord + ROOMS_CNT + CONT_TOKENS_CNT
 
-def coord_from_token_id(token_id: int):
+def coord_from_token_id(token_id: int | torch.Tensor):
     return token_id - ROOMS_CNT - CONT_TOKENS_CNT
 
 def coord_token(coord: int) -> str:
@@ -47,11 +47,21 @@ MIN_COORD_ID = coord_token_id(0)
 MAX_COORD_ID = coord_token_id(256)
 
 
-def is_coord(token_id):
+def is_coord(token_id) -> int | torch.Tensor:
     if isinstance(token_id, int):
         return token_id >= MIN_COORD_ID and token_id <= MAX_COORD_ID
     
     if isinstance(token_id, torch.Tensor):
         return (token_id >= MIN_COORD_ID) & (token_id <= MAX_COORD_ID)
+    
+    raise Exception(f"Invalid type {type(token_id)}")
+
+
+def is_room(token_id) -> bool | torch.Tensor:
+    if isinstance(token_id, int):
+        return token_id >= MIN_ROOM_ID and token_id <= MAX_ROOM_ID
+    
+    if isinstance(token_id, torch.Tensor):
+        return (token_id >= MIN_ROOM_ID) & (token_id <= MAX_ROOM_ID)
     
     raise Exception(f"Invalid type {type(token_id)}")

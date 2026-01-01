@@ -10,7 +10,7 @@ def _preprocess(training_config):
         training_config["ignore_prompt_in_loss"] = False
 
 
-def get_loss(training_config, tokenizer):
+def get_loss(training_config, tokenizer, train_dataloader):
     if "loss" not in training_config:
         print("Warning - no specified loss - using default Cross Entropy")
         return CrossEntropyLoss()
@@ -25,8 +25,8 @@ def get_loss(training_config, tokenizer):
         base_loss = CrossEntropyLoss()
 
     elif training_config["loss"] == "NeighborhoodLoss":
-        ce = CrossEntropyLoss()
-        base_loss = NeighborhoodLoss(ce)
+        base_loss = NeighborhoodLoss()
+        base_loss.update_max_ergo_loss(train_dataloader)
 
     elif training_config["loss"] == "NarrowSpacesLoss":
         ce = CrossEntropyLoss()
