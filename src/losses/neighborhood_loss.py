@@ -61,14 +61,19 @@ class NeighborhoodLoss:
             floor_plan_ergo = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
             weight = 1.0 - floor_plan_ergo / self.max_ergo_loss
 
-            inter_val, is_valid = self._get_prediction(batch_labels, batch_logits)
-            plan_ids = self._replace_gt_with_predicted_values(batch_labels, inter_val, is_valid)
+            
 
             std_loss = self.cc_loss(batch_logits.unsqueeze(0), batch_labels.unsqueeze(0))
 
             if weight < 1.0:
-                ergo_loss = self._ergonomic_loss(plan_ids)
-                loss = weight * std_loss + (1.0 - weight) * ergo_loss
+                inter_val, is_valid = self._get_prediction(batch_labels, batch_logits)
+                plan_ids = self._replace_gt_with_predicted_values(batch_labels, inter_val, is_valid)
+
+                if plan_ids.numel() == 0:
+                    loss = std_loss
+                else:
+                    ergo_loss = self._ergonomic_loss(plan_ids)
+                    loss = weight * std_loss + (1.0 - weight) * ergo_loss
             else:
                 loss = std_loss
 
@@ -94,9 +99,10 @@ class NeighborhoodLoss:
         #pred_ind = pred_ind.float()
 
         pred_is_coord = tokens.is_coord(pred_ind)
-        pred_is_prompt = self._is_prompt(labels)
+        label_is_prompt = self._is_prompt(labels)
+        label_is_coord = tokens.is_coord(labels)
 
-        is_valid = pred_is_coord & (~pred_is_prompt)
+        is_valid = pred_is_coord & label_is_coord & (~label_is_prompt)
 
         coords_for_interp = pred_ind[is_valid]
 
