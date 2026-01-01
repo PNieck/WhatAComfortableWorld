@@ -21,12 +21,11 @@ def gaussian1d(mu,sigma,res,device='cpu'):
   """
   mu = torch.as_tensor(mu).view(-1,1)
   x = torch.arange(tokens.MIN_COORD_ID, tokens.MAX_COORD_ID, device=device)
-  #x = torch.linspace(0, res-1, res,device=device).view(1,-1)
   return torch.exp(-0.5*((x-mu)/sigma)**2) #* 1/(s*np.sqrt(2*np.pi)) 
 
 
 class NeighborhoodLoss:
-    def __init__(self):
+    def __init__(self, device):
         self.base_loss_fun = nn.CrossEntropyLoss(ignore_index=-100)
 
         self.sigma = 1.0
@@ -34,11 +33,11 @@ class NeighborhoodLoss:
 
         self.beta = 10.0
 
-        self.max_ergo_loss = 5.0
+        self.max_ergo_loss = torch.ones(1, device=device) * 5.0
 
 
-    def update_max_ergo_loss(self, train_dataloader: DataLoader):
-        self.max_ergo_loss = 0.0
+    def update_max_ergo_loss(self, train_dataloader: DataLoader, device):
+        self.max_ergo_loss = torch.zeros(1, device=device)
         
         with torch.no_grad():
             for batch in train_dataloader:
@@ -47,7 +46,7 @@ class NeighborhoodLoss:
                     batch_labels: torch.Tensor = labels[i]
 
                     ergo_loss = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
-                    self.max_ergo_loss = max(self.max_ergo_loss, ergo_loss)
+                    self.max_ergo_loss = torch.max(self.max_ergo_loss, ergo_loss)
 
 
     def __call__(self, output, labels: torch.Tensor):
