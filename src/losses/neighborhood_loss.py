@@ -35,10 +35,6 @@ class NeighborhoodLoss:
 
         self.max_ergo_loss = torch.ones(1, device=device) * 5.0
 
-        if device.type == "cuda":
-            self.s1 = torch.cuda.Stream()
-            self.s2 = torch.cuda.Stream()
-
 
     def update_max_ergo_loss(self, train_dataloader: DataLoader, device):
         self.max_ergo_loss = torch.zeros(1, device=device)
@@ -54,6 +50,8 @@ class NeighborhoodLoss:
 
                     ergo_loss = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
                     self.max_ergo_loss = torch.max(self.max_ergo_loss, ergo_loss)
+
+        self.max_ergo_loss = self.max_ergo_loss.to("cpu")
 
 
     def __call__(self, output, labels: torch.Tensor):
@@ -159,22 +157,10 @@ class NeighborhoodLoss:
     def _ergonomic_loss(self, plan_ids: torch.Tensor):
         device = plan_ids.device
 
-        if device.type == "cpu":
-            entrance_loss = torch.sum(self._entrance_loss(plan_ids))
-            kitchen_loss = torch.sum(self._kitchens_loss(plan_ids))
-            bathrooms_loss = torch.sum(self._bathroom_loss(plan_ids))
-            balconies_loss = torch.sum(self._balconies_loss(plan_ids))
-
-        elif device.type == "cuda":
-            with torch.cuda.stream(self.s1):
-                entrance_loss = torch.sum(self._entrance_loss(plan_ids))
-                bathrooms_loss = torch.sum(self._bathroom_loss(plan_ids))
-
-            with torch.cuda.stream(self.s2):
-                kitchen_loss = torch.sum(self._kitchens_loss(plan_ids))
-                balconies_loss = torch.sum(self._balconies_loss(plan_ids))
-
-            torch.cuda.synchronize()
+        entrance_loss = torch.sum(self._entrance_loss(plan_ids))
+        kitchen_loss = torch.sum(self._kitchens_loss(plan_ids))
+        bathrooms_loss = torch.sum(self._bathroom_loss(plan_ids))
+        balconies_loss = torch.sum(self._balconies_loss(plan_ids))
 
         valid_losses = torch.zeros(1, device=device)
         ergo_loss = torch.zeros(1, device=device)
