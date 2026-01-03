@@ -8,15 +8,7 @@ import json
 
 
 class LogWriter:
-    def __init__(self, log_dir: str):
-        # training_status_path =  os.path.join(log_dir, "training_status.json")
-        # if os.path.isdir(log_dir) and os.path.exists(training_status_path):
-        #     with open(training_status_path, "r") as file:
-        #         training_status = json.load(file)
-        #         self.start_epoch = training_status.get("epochs")
-        #         self.start_step = training_status.get("steps")
-        # else:
-        
+    def __init__(self, log_dir: str):       
         self.start_epoch = 0
         self.start_step = 0
 
@@ -50,19 +42,13 @@ class LogWriter:
         self.sw.add_hparams(hparam_dict, metric_dict)
 
 
-    def save_training_status(self, step: int, epoch: int, dir: str = None):
-        if dir is None:
-            dir = self.sw.log_dir
-        
-        path = dir + "/training_status.json"
-        
-        data = {
+    def state_dict(self, epoch, step) -> dict:
+        return {
             "epochs": epoch + self.start_epoch,
             "steps": step + self.start_step
         }
-
-        json_str = json.dumps(data, indent=4)
-
-        with open(path, "w") as file:
-            file.write(json_str)
+    
+    def load_state_dict(self, dict: dict):
+        self.start_epoch = dict["epochs"]
+        self.start_step = dict["steps"]
 

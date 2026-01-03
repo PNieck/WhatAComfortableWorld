@@ -11,6 +11,7 @@ from src.log_writer import LogWriter
 from src.losses import get_loss
 from src.training_config import TrainingConfig
 from src.lr_schedulers import get_lr_scheduler
+from src.checkpoints import create_checkpoint, save_training_status
 
 
 def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
@@ -63,33 +64,7 @@ def checkpointing(model, optimizer, lr_scheduler, config: TrainingConfig, epoch,
     if epoch % config.checkpointing_frequency == 0 and epoch != config.epochs_cnt and epoch != 0:
         print("Creating a checkpoint")
 
-        dir = os.path.join(config.log_dir, "checkpoints", f"epoch_{epoch + log_writer.start_epoch}")
-        os.makedirs(dir, exist_ok=True)
-
-        try:
-            model.save_pretrained(dir)
-        except Exception as e:
-            print(f"Failed to save model checkpoint: {e}")
-
-        # Save optimizer and lr scheduler states
-        try:
-            torch.save({
-                "optimizer_state_dict": optimizer.state_dict(),
-                "lr_scheduler_state_dict": lr_scheduler.state_dict(),
-            }, os.path.join(dir, "optim_states.pt"))
-        except Exception as e:
-            print(f"Failed to save optimizer/scheduler state: {e}")
-
-        log_writer.save_training_status(step, epoch, dir)
-
-
-def load_optimizer_and_scheduler(config, optimizer, lr_scheduler, device):
-    checkpoint_dir = os.path.join(config["log_dir"], "checkpoints", f"epoch_{config["checkpoint_epoch"]}")
-    
-    states = torch.load(os.path.join(checkpoint_dir, "optim_states.pt"), map_location=device)
-    optimizer.load_state_dict(states["optimizer_state_dict"])
-    lr_scheduler.load_state_dict(states["lr_scheduler_state_dict"])
-    print(f"Loaded optimizer and lr_scheduler state from {checkpoint_dir}")
+        create_checkpoint(model, optimizer, lr_scheduler, config, epoch, step, log_writer)
 
 
 def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, log_writer: LogWriter):
@@ -157,4 +132,4 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
     eval_avg_loss, accuracy = evaluate(model, test_dataloader)
     log_writer.add_scalar("Eval avg loss", eval_avg_loss, step)
     log_writer.add_scalar("Eval accuracy", accuracy, step)
-    log_writer.save_training_status(step, epoch)
+    save_training_status(config.log_dir, log_writer, epoch, step)

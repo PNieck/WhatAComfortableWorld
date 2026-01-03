@@ -6,8 +6,6 @@ except ImportError:
 import os
 import datetime
 from dataclasses import dataclass
-from pathlib import Path
-import re
 
 
 @dataclass
@@ -21,7 +19,10 @@ class TrainingConfig:
 
     @property
     def seed(self) -> int | None:
-        return self.general_config["seed"]
+        if "seed" not in self.general_config:
+            return None
+        
+        return int(self.general_config["seed"])
     
     @property
     def model_has_xy_indices(self) -> bool:
@@ -80,7 +81,7 @@ class TrainingConfig:
     
     @property
     def lr_scheduler_type(self) -> str:
-        return self.train_config["lr_scheduler"]
+        return self.train_config["lr_scheduler"]["type"]
     
     @property
     def lr_scheduler_config(self) -> CyclicLRSchedulerConfig | None:
@@ -103,36 +104,52 @@ class TrainingConfig:
         return int(self.train_config["checkpointing_frequency"])
 
 
-    def __init__(self, path: str):
+    def __init__(self, path: str|None = None):
+        if path is None:
+            self.general_config = {}
+            self.model_config = {}
+            self.train_config = {}
+            self.lr_config = None
+            self.log_dir = ""  
+            return     
+
         with open(path, "r") as f:
             config = yaml.load(f, Loader=Loader)
 
-        if "general" not in config:
-            self.general_config: dict = dict()
-        else:
-            self.general_config: dict = config["general"]
-
-        self.model_config: dict = config["model"]
-        self.train_config: dict = config["training"]
-
-        self.lr_config = None
-
-        self._preprocess_general_config()
-        self._preprocess_model_config()
-        self._preprocess_train_config()
-
-        self.log_dir: str = self._get_log_dir()
+        self.load_state_dict(config)
 
 
     def update_with_tokenizer(self, tokenizer):
         self.model_config["vocab_size"] = len(tokenizer)
 
 
-    def _preprocess_general_config(self):
-        if "seed" not in self.general_config:
-            self.general_config["seed"] = None
+    def state_dict(self) -> dict:
+        result = {}
+        result["general"] = self.general_config
+        result["model"] = self.model_config
+        result["training"] = self.train_config
+        result["logging"] = self.log_dir
+
+        return result
+    
+    def load_state_dict(self, d: dict):
+        if "general" not in d:
+            self.general_config: dict = dict()
         else:
-            self.general_config["seed"] = int(self.general_config["seed"])
+            self.general_config: dict = d["general"]
+
+        self.model_config: dict = d["model"]
+        self.train_config: dict = d["training"]
+
+        self.lr_config = None
+
+        self._preprocess_model_config()
+        self._preprocess_train_config()
+
+        if "logging" in d:
+            self.log_dir = d["logging"]
+        else:
+            self.log_dir: str = self._get_log_dir()
 
     
     def _preprocess_model_config(self):
@@ -149,12 +166,12 @@ class TrainingConfig:
 
         if "lr_scheduler" not in self.train_config:
             print("Learning scheduler not specified - using linear one")
-            self.train_config["lr_scheduler"] = "linear"
-        else:
-            scheduler_config = self.train_config.pop("lr_scheduler")
-            self.train_config["lr_scheduler"] = scheduler_config["type"]
+            self.train_config["lr_scheduler"] = {}
+            self.train_config["lr_scheduler"]["type"] = "linear"
 
-        if self.train_config["lr_scheduler"] == "cyclic":
+        if self.train_config["lr_scheduler"]["type"] == "cyclic":
+            scheduler_config = self.train_config["lr_scheduler"]
+            
             self.lr_config = CyclicLRSchedulerConfig(
                 float(scheduler_config["base_lr"]),
                 float(scheduler_config["max_lr"]),
@@ -162,11 +179,11 @@ class TrainingConfig:
             )
 
 
-
     @staticmethod
     def _preprocess_bool_entry(config: dict, entry: str):
         if entry not in config:
             config[entry] = False
+
 
     def _get_log_dir(self) -> str:
         result = os.path.join("runs", datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S"))
@@ -175,25 +192,3 @@ class TrainingConfig:
             result += self.train_config["log_comment"]
 
         return result
-
-
-def _get_biggest_checkpoint_epoch(path) -> int:
-    tmp_path = Path(path + "/checkpoints")
-
-    max_epoch = -1
-    for entry in tmp_path.iterdir():
-        if not entry.is_dir():
-            continue
-
-        match = re.match(r"^epoch_(\d+)", entry.name)
-        if not match:
-            continue
-
-        epoch = int(match.group(1))
-        if epoch > max_epoch:
-            max_epoch = epoch
-
-    if max_epoch < 0:
-        raise Exception("Invalid checkpoint dir")
-
-    return max_epoch
