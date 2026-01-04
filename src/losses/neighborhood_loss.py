@@ -51,20 +51,23 @@ class NeighborhoodLoss:
                     ergo_loss = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
                     self.max_ergo_loss = torch.max(self.max_ergo_loss, ergo_loss)
 
+        self.max_ergo_loss = self.max_ergo_loss.to("cpu")
+
 
     def __call__(self, output, labels: torch.Tensor):
         logits: torch.Tensor = output.logits
 
-        loss_sum = torch.zeros(1, device=labels.device)
+        loss_sum = torch.zeros(1)
 
         for i in range(labels.size(0)):
             batch_logits = logits[i,:,:]
             batch_labels = labels[i,:]
 
+            batch_logits = batch_logits.to("cpu")
+            batch_labels = batch_labels.to("cpu")
+
             floor_plan_ergo = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
             weight = 1.0 - floor_plan_ergo / self.max_ergo_loss
-
-            
 
             std_loss = self.cc_loss(batch_logits.unsqueeze(0), batch_labels.unsqueeze(0))
 
@@ -94,7 +97,7 @@ class NeighborhoodLoss:
         return loss
 
 
-    def _get_prediction(self, labels, logits):
+    def _get_prediction(self, labels: torch.Tensor, logits: torch.Tensor):
         device = labels.device
 
         probs = F.softmax(logits,-1)
