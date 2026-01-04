@@ -11,7 +11,7 @@ from src.log_writer import LogWriter
 from src.losses import get_loss
 from src.training_config import TrainingConfig
 from src.lr_schedulers import get_lr_scheduler
-from src.checkpoints import create_checkpoint, save_training_status
+from src.checkpoints import create_checkpoint, save_training_status, CheckpointReader
 
 
 def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
@@ -84,24 +84,30 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
     lr_scheduler = get_lr_scheduler(config, optimizer, num_training_steps)
     eval_steps = config.eval_steps
 
+    if config.use_checkpoint:
+        ch = CheckpointReader(config.checkpoint_path, config.checkpoint_epoch)
+        ch.load_optimizer(optimizer, device)
+        ch.load_lr_scheduler(lr_scheduler, device)
+
     progress_bar = tqdm(range(num_training_steps))
 
     train_loss = 0
 
     step = 0
+    start_epoch = 0 if not config.use_checkpoint else config.checkpoint_epoch
     model.train()
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch, num_epochs):
         for batch in train_dataloader:
             if device.type != "cpu":
                 batch = {k: v.to(device) for k, v in batch.items()}
 
             labels = batch.pop('labels') # Remove labels since we want to compute the loss manually
 
+            optimizer.zero_grad()
+
             outputs = model(**batch)
             loss = loss_fun(outputs, labels)
             train_loss += loss.item()
-
-            optimizer.zero_grad()
 
             loss.backward()
 

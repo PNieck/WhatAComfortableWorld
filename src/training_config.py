@@ -102,6 +102,10 @@ class TrainingConfig:
     @property
     def checkpointing_frequency(self) -> int:
         return int(self.train_config["checkpointing_frequency"])
+    
+    @property
+    def use_checkpoint(self) -> bool:
+        return self.checkpoint_path is not None
 
 
     def __init__(self, path: str|None = None):
@@ -111,12 +115,15 @@ class TrainingConfig:
             self.train_config = {}
             self.lr_config = None
             self.log_dir = ""  
-            return     
+            return
 
         with open(path, "r") as f:
             config = yaml.load(f, Loader=Loader)
 
         self.load_state_dict(config)
+
+        self.checkpoint_path = None
+        self.checkpoint_epoch = None
 
 
     def update_with_tokenizer(self, tokenizer):

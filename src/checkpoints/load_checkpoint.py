@@ -17,10 +17,12 @@ class CheckpointReader:
         if not os.path.exists(dir):
             raise ValueError(f"No checkpoints dir in {log_dir}")
 
-        if epoch is None:
-            epoch = CheckpointReader._get_biggest_checkpoint_epoch(dir)
+        self.epoch = epoch
 
-        self.dir: str = os.path.join(dir, f"epoch_{epoch}")
+        if self.epoch is None:
+            self.epoch = CheckpointReader._get_biggest_checkpoint_epoch(dir)
+
+        self.dir: str = os.path.join(dir, f"epoch_{self.epoch}")
         if not os.path.exists(self.dir):
             raise ValueError(f"No directory {self.dir}")
 

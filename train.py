@@ -18,6 +18,7 @@ from src.floor_plan_tokenizer import FloorPlanTokenizer
 from src.validation import validate
 from src.log_writer import LogWriter
 from src.training_config import TrainingConfig
+from src.checkpoints import CheckpointReader
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
@@ -32,22 +33,55 @@ def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
 def main():
     p = argparse.ArgumentParser(description="Train model from scratch")
 
-    p.add_argument(
-        "path_to_config",
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--config",
+        dest="config",
         type=str,
         help="Path to the configuration file"
     )
+
+    group.add_argument(
+        "--from_checkpoint",
+        dest="from_checkpoint",
+        type=str,
+        help="Path to a checkpoint directory (e.g. runs/.../checkpoints/epoch_3)"
+    )
+
+    p.add_argument(
+        "--epoch",
+        dest="epoch",
+        type=int,
+        default=None,
+        help="Checkpoint epoch to resume from (overrides epoch detected from directory). Only valid with --from_checkpoint."
+    )
+
     args = p.parse_args()
 
-    config = TrainingConfig(args.path_to_config)
+    tokenizer = FloorPlanTokenizer()
+
+    if args.config is not None:
+        config = TrainingConfig(args.config)
+        config.update_with_tokenizer(tokenizer)
+        model = get_model(config)
+        log_writer = LogWriter(config.log_dir)
+
+    else:
+        ch = CheckpointReader(args.from_checkpoint, args.epoch)
+        
+        config = TrainingConfig()
+        config.update_with_tokenizer(tokenizer)
+        ch.load_training_config(config)
+        config.checkpoint_path = args.from_checkpoint
+        config.checkpoint_epoch = ch.epoch
+
+        log_writer = LogWriter(config.log_dir)
+        ch.load_log_writer(log_writer)
+
+        model = ch.load_model()
 
     if config.seed is not None:
         set_seed(config.seed)
-
-    tokenizer = FloorPlanTokenizer()
-    config.update_with_tokenizer(tokenizer)
-
-    model = get_model(config)
     
     print_model_size(model)
     print(model)
@@ -63,8 +97,6 @@ def main():
         remove_columns=["text"],
     )
     tokenized_dataset.set_format("torch")
-
-    log_writer = LogWriter(config.log_dir)
 
     print("Starting training…")
     training_loop(model, tokenizer, tokenized_dataset, config, log_writer)
