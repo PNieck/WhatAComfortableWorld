@@ -2,7 +2,6 @@ from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
 import os
-import re
 
 from tqdm.auto import tqdm
 
@@ -11,7 +10,7 @@ from transformers import DataCollatorForLanguageModeling
 from src.log_writer import LogWriter
 from src.losses import get_loss
 
-from .lr_schedulers import get_lr_scheduler
+from ..lr_schedulers import get_lr_scheduler
 
 
 def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float, float]:
@@ -67,22 +66,33 @@ def checkpointing(model, optimizer, lr_scheduler, config, epoch, step, log_write
     if epoch % config["checkpointing_frequency"] == 0 and epoch != config["epochs"] and epoch != 0:
         print("Creating a checkpoint")
 
-        dir = config["log_dir"]
-        dir += f"checkpoints/epoch_{epoch + log_writer.start_epoch}/"
-        os.makedirs(dir, exist_ok=True)
+    dir = os.path.join(config["log_dir"], "checkpoints", f"epoch_{epoch + log_writer.start_epoch}")
+    os.makedirs(dir, exist_ok=True)
 
+    try:
         model.save_pretrained(dir)
+    except Exception as e:
+        print(f"Failed to save model checkpoint: {e}")
 
-        # Save optimizer and lr scheduler states
-        try:
-            torch.save({
-                "optimizer_state_dict": optimizer.state_dict(),
-                "lr_scheduler_state_dict": lr_scheduler.state_dict(),
-            }, os.path.join(dir, "optim_states.pt"))
-        except Exception as e:
-            print(f"Failed to save optimizer/scheduler state: {e}")
+    # Save optimizer and lr scheduler states
+    try:
+        torch.save({
+            "optimizer_state_dict": optimizer.state_dict(),
+            "lr_scheduler_state_dict": lr_scheduler.state_dict(),
+        }, os.path.join(dir, "optim_states.pt"))
+    except Exception as e:
+        print(f"Failed to save optimizer/scheduler state: {e}")
 
-        log_writer.save_training_status(step, epoch, dir)
+    log_writer.save_training_status(step, epoch, dir)
+
+
+def load_optimizer_and_scheduler(config, optimizer, lr_scheduler, device):
+    checkpoint_dir = os.path.join(config["log_dir"], "checkpoints", f"epoch_{config["checkpoint_epoch"]}")
+    
+    states = torch.load(os.path.join(checkpoint_dir, "optim_states.pt"), map_location=device)
+    optimizer.load_state_dict(states["optimizer_state_dict"])
+    lr_scheduler.load_state_dict(states["lr_scheduler_state_dict"])
+    print(f"Loaded optimizer and lr_scheduler state from {checkpoint_dir}")
 
 
 def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_writer: LogWriter):
@@ -107,37 +117,8 @@ def custom_training_loop(model: nn.Module, tokenizer, dataset, config, log_write
     num_training_steps = num_epochs * len(train_dataloader)
     lr_scheduler = get_lr_scheduler(config, optimizer, num_training_steps)
 
-    # Attempt to load optimizer and lr_scheduler states from latest checkpoint (if present)
-    checkpoint_dir = None
-    cp_root = os.path.join(config["log_dir"], "checkpoints")
-    if os.path.isdir(cp_root):
-        # Prefer checkpoint corresponding to saved training status epoch
-        candidate_epoch = log_writer.start_epoch
-        if candidate_epoch > 0:
-            candidate = os.path.join(cp_root, f"epoch_{candidate_epoch}")
-            candidate_file = os.path.join(candidate, "optim_states.pt")
-            if os.path.exists(candidate_file):
-                checkpoint_dir = candidate
-        # Otherwise find the latest checkpoint with optimizer state
-        if checkpoint_dir is None:
-            max_epoch = -1
-            for entry in os.listdir(cp_root):
-                match = re.match(r"^epoch_(\d+)$", entry)
-                if not match:
-                    continue
-                epoch_n = int(match.group(1))
-                entry_file = os.path.join(cp_root, entry, "optim_states.pt")
-                if os.path.exists(entry_file) and epoch_n > max_epoch:
-                    max_epoch = epoch_n
-                    checkpoint_dir = os.path.join(cp_root, entry)
-    if checkpoint_dir is not None:
-        try:
-            states = torch.load(os.path.join(checkpoint_dir, "optim_states.pt"), map_location=device)
-            optimizer.load_state_dict(states["optimizer_state_dict"])
-            lr_scheduler.load_state_dict(states["lr_scheduler_state_dict"])
-            print(f"Loaded optimizer and lr_scheduler state from {checkpoint_dir}")
-        except Exception as e:
-            print(f"Failed to load optimizer/scheduler state: {e}")
+    if config["from_checkpoint"]:
+        load_optimizer_and_scheduler(config, optimizer, lr_scheduler, device)
 
     progress_bar = tqdm(range(num_training_steps))
 

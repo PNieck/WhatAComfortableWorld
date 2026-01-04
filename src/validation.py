@@ -4,6 +4,7 @@ from datasets import DatasetDict
 
 from src.log_writer import LogWriter
 from src.generation import Generator
+from src.training_config import TrainingConfig
 from src.validation_metrics import (
     ParsabilityRate,
     CoverageTest,
@@ -16,8 +17,7 @@ from src.validation_metrics import (
 def validate(
         model: PreTrainedModel,
         tokenizer, dataset: DatasetDict,
-        training_config: dict,
-        model_config: dict,
+        config: TrainingConfig,
         log_writer: LogWriter
     ):
     pars_rate = ParsabilityRate()
@@ -35,8 +35,8 @@ def validate(
         room_overlap_rate.measure(floor_plans)
         required_rooms.measure(floor_plans)
     
-    hparams = training_config.copy()
-    hparams = hparams | model_config
+    hparams = config.train_config.copy()
+    hparams = hparams | config.model_config.copy()
 
     hparams.pop("eval_steps", None)
     hparams.pop("log_comment", None)

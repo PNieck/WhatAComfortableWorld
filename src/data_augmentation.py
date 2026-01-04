@@ -35,20 +35,21 @@ def _coord_symmetry(coord: np.ndarray):
 def _arr_sym(arr: np.ndarray, type: SymmetryType):
     result = np.empty_like(arr)
 
-    if type == SymmetryType.X:
-        result[:, 0] = _coord_symmetry(arr[:, 0])
-        result[:, 1] = arr[:, 1]
+    match type:
+        case SymmetryType.X:
+            result[:, 0] = _coord_symmetry(arr[:, 0])
+            result[:, 1] = arr[:, 1]
 
-    elif type == SymmetryType.Y:
-        result[:, 0] = arr[:, 0]
-        result[:, 1] = _coord_symmetry(arr[:, 1])
+        case SymmetryType.Y:
+            result[:, 0] = arr[:, 0]
+            result[:, 1] = _coord_symmetry(arr[:, 1])
 
-    elif type == SymmetryType.XY:
-        result[:, 0] = _coord_symmetry(arr[:, 0])
-        result[:, 1] = _coord_symmetry(arr[:, 1])
+        case SymmetryType.XY:
+            result[:, 0] = _coord_symmetry(arr[:, 0])
+            result[:, 1] = _coord_symmetry(arr[:, 1])
 
-    else:
-        raise Exception("Unknown symmetry type")
+        case _:
+            raise Exception(f"Unknown symmetry type {type}")
     
     return result
 
@@ -84,20 +85,21 @@ def _arr_rot(arr: np.ndarray, angle: RotationAngle):
     if arr.dtype == np.uint8:
         arr = arr.astype(np.uint16)
 
-    if angle == RotationAngle._90deg:
-        result[:, 0] = (FloorPlan.MAX_COORDINATE + 1) - arr[:, 1]
-        result[:, 1] = arr[:, 0]
+    match angle:
+        case RotationAngle._90deg:
+            result[:, 0] = (FloorPlan.MAX_COORDINATE + 1) - arr[:, 1]
+            result[:, 1] = arr[:, 0]
 
-    elif angle == RotationAngle._180deg:
-        result[:, 0] = (FloorPlan.MAX_COORDINATE + 1) - arr[:, 0]
-        result[:, 1] = (FloorPlan.MAX_COORDINATE + 1) - arr[:, 1]
+        case RotationAngle._180deg:
+            result[:, 0] = (FloorPlan.MAX_COORDINATE + 1) - arr[:, 0]
+            result[:, 1] = (FloorPlan.MAX_COORDINATE + 1) - arr[:, 1]
 
-    elif angle == RotationAngle._270deg:
-        result[:, 0] = arr[:, 1]
-        result[:, 1] = (FloorPlan.MAX_COORDINATE + 1) - arr[:, 0]
+        case RotationAngle._270deg:
+            result[:, 0] = arr[:, 1]
+            result[:, 1] = (FloorPlan.MAX_COORDINATE + 1) - arr[:, 0]
 
-    else:
-        raise Exception("Unknown angle")
+        case _:
+            raise Exception("Unknown angle")        
 
     return result
 

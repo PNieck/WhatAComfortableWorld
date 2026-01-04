@@ -1,11 +1,6 @@
 from __future__ import annotations
 import argparse
-import datetime
-import yaml
-try:
-    from yaml import CLoader as Loader
-except ImportError:
-    from yaml import Loader
+import os
 
 from transformers import (
     PreTrainedTokenizer,
@@ -14,33 +9,16 @@ from transformers import (
 
 from src.models import (
     print_model_size,
-    get_model,
-    preprocess_model_config
+    get_model
 )
 
-from src.train_loop import train
+from src.train_loop import training_loop
 from src.dataset_loader import load_floor_plans_dataset, Split
 from src.floor_plan_tokenizer import FloorPlanTokenizer
 from src.validation import validate
 from src.log_writer import LogWriter
-
-
-def log_dir_name(training_config: dict, model_config: dict) -> str:
-    dir_prefix = "runs/"
-    
-    if "input_model_path" in model_config:
-        result = dir_prefix + model_config["input_model_path"]
-        if not result.endswith("/"):
-            result += "/"
-        
-        return result
-
-    result = dir_prefix + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-
-    if "log_comment" in training_config:
-        result += training_config["log_comment"] + "/"
-
-    return result
+from src.training_config import TrainingConfig
+from src.checkpoints import CheckpointReader
 
 
 def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
@@ -55,56 +33,81 @@ def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
 def main():
     p = argparse.ArgumentParser(description="Train model from scratch")
 
-    p.add_argument(
-        "path_to_config",
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--config",
+        dest="config",
         type=str,
         help="Path to the configuration file"
     )
+
+    group.add_argument(
+        "--from_checkpoint",
+        dest="from_checkpoint",
+        type=str,
+        help="Path to a checkpoint directory (e.g. runs/.../checkpoints/epoch_3)"
+    )
+
+    p.add_argument(
+        "--epoch",
+        dest="epoch",
+        type=int,
+        default=None,
+        help="Checkpoint epoch to resume from (overrides epoch detected from directory). Only valid with --from_checkpoint."
+    )
+
     args = p.parse_args()
-
-    with open(args.path_to_config, "r") as f:
-        config = yaml.load(f, Loader=Loader)
-
-    model_config = config["model"]
-    paths_config = config["paths"]
-    train_config = config["training"]
-
-    if "seed" in config["general"]:
-        set_seed(config["general"]["seed"])
 
     tokenizer = FloorPlanTokenizer()
 
-    model_config = preprocess_model_config(model_config, tokenizer)
-    model = get_model(model_config)
+    if args.config is not None:
+        config = TrainingConfig(args.config)
+        config.update_with_tokenizer(tokenizer)
+        model = get_model(config)
+        log_writer = LogWriter(config.log_dir)
+
+    else:
+        ch = CheckpointReader(args.from_checkpoint, args.epoch)
+        
+        config = TrainingConfig()
+        config.update_with_tokenizer(tokenizer)
+        ch.load_training_config(config)
+        config.checkpoint_path = args.from_checkpoint
+        config.checkpoint_epoch = ch.epoch
+
+        log_writer = LogWriter(config.log_dir)
+        ch.load_log_writer(log_writer)
+
+        model = ch.load_model()
+
+    if config.seed is not None:
+        set_seed(config.seed)
     
     print_model_size(model)
     print(model)
 
     # Load dataset
     print("Loading datasets")
-    dataset = load_floor_plans_dataset(paths_config["input_data"], Split.TEST | Split.TRAIN)
+    dataset = load_floor_plans_dataset(config.input_data_path, Split.TEST | Split.TRAIN)
 
     # Tokenize
     tokenized_dataset = dataset.map(
-        lambda ex: tokenize_function(ex, tokenizer, model_config["max_seq_len"]),
+        lambda ex: tokenize_function(ex, tokenizer, config.max_sequence_len),
         batched=True,
         remove_columns=["text"],
     )
     tokenized_dataset.set_format("torch")
 
-    log_dir = log_dir_name(train_config, model_config)
-    train_config["log_dir"] = log_dir
-    log_writer = LogWriter(log_dir)
-
     print("Starting training…")
-    train(model, tokenizer, tokenized_dataset, train_config, log_writer)
+    training_loop(model, tokenizer, tokenized_dataset, config, log_writer)
 
     print("Saving model")
-    model.save_pretrained(log_dir + "model/")
+    model_dir = os.path.join(config.log_dir, "model")
+    model.save_pretrained(model_dir)
 
     print("Validating model…")
-    dataset = load_floor_plans_dataset(paths_config["input_data"], Split.VALID)
-    validate(model, tokenizer, dataset, train_config, model_config, log_writer)
+    dataset = load_floor_plans_dataset(config.input_data_path, Split.VALID)
+    validate(model, tokenizer, dataset, config, log_writer)
 
     print(f"\nAll done.")
 

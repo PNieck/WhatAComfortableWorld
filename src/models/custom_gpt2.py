@@ -13,27 +13,20 @@ from src.floor_plan_tokenizer import FloorPlanTokenizer
 from src.floor_plan import RoomType
 from src.sequence.from_sequence import boundary_from_sequence
 from src.geom_utils import LineType, line_type, create_line
+from src.training_config import TrainingConfig
 
 
-def get_gpt2_config(config) -> GPT2Config:
+def get_gpt2_config(config: TrainingConfig) -> GPT2Config:
     return GPT2Config(
-        vocab_size=config["vocab_size"],
-        n_positions=config["max_seq_len"],
-        n_ctx=config["max_seq_len"],
-        n_layer=config["n_layer"],
-        n_head=config["n_head"],
-        n_embd=config["n_embd"],
+        vocab_size=config.vocab_size,
+        n_positions=config.max_sequence_len,
+        n_ctx=config.max_sequence_len,
+        n_layer=config.model_layers_cnt,
+        n_head=config.model_heads_cnt,
+        n_embd=config.model_embedding_dim,
         bos_token_id=tokens.START_SEQ_TOKEN_ID,
         eos_token_id=tokens.END_SEQ_TOKEN_ID,
     )
-
-
-def get_gpt2(config):
-    config = get_gpt2_config(config)
-
-    model = CustomGPT2(config)
-
-    return model
 
 
 class TokenToGenerateType(Enum):

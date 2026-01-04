@@ -2,13 +2,13 @@ general:
   seed: 42
 
 paths:
-  input_data: "./data/input"
-  output_data: "./data/output"
-  trained_model: "./models/"
+  input_data: "./data/gpt2_main/input/"
+  output_data: "./data/gpt2_main/output/"
+  trained_model: "./models/gpt2_custom_loop/"
 
 preprocessing:
   test_size: 0.05
-  validate_size: 0.005
+  validate_size: 0.05
   data_augmentation:
     - permutation:
         percentage: 0.4
@@ -18,15 +18,17 @@ preprocessing:
         percentage: 0.4
 
 model:
-  name: "main_model"
-  type: "gemma3"
+  name: "gpt2_main_model"
+  type: "gpt2"
   max_seq_len: 320
+  n_layer: 12
+  n_head: 8
+  n_embd: 256   # embedding and hidden states dimension
 
 training:
-  loop_type: "custom"
-  epochs: 150
+  loop_type: "transformers"
+  epochs: 60
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
-  log_comment: "_main_training"
-
+  log_comment: "_main_gpt2_training"

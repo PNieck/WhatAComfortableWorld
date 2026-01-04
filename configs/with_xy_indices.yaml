@@ -1,11 +1,6 @@
 general:
   seed: 42
 
-paths:
-  input_data: "./data/input"
-  output_data: "./data/output"
-  trained_model: "./models/custom/"
-
 preprocessing:
   test_size: 0.05
   validate_size: 0.005
@@ -18,18 +13,16 @@ preprocessing:
         percentage: 0.4
 
 model:
-  name: "custom_model"
-  type: "gemma3"
+  with_coord_indices: True
   max_seq_len: 320
-  hidden_size: 256         # embedding dim
-  sliding_window: 100
-  intermediate_size: 1024
+  n_layer: 12
+  n_head: 8
+  n_embd: 256
 
 training:
-  loop_type: "custom"
-  epochs: 20
+  input_data: "./data/gpt2_main/input/"
+  epochs: 50
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
-  log_comment: "_custom_training"
-
+  log_comment: "_xy_indices_training"
