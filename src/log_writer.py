@@ -44,7 +44,7 @@ class LogWriter:
 
     def state_dict(self, epoch, step) -> dict:
         return {
-            "epochs": epoch + self.start_epoch,
+            "epochs": epoch,
             "steps": step + self.start_step
         }
     

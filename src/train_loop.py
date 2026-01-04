@@ -61,7 +61,7 @@ def evaluate(model: nn.Module, test_loader: DataLoader) -> tuple[float, float]:
 
 
 def checkpointing(model, optimizer, lr_scheduler, config: TrainingConfig, epoch, step, log_writer: LogWriter):
-    if epoch % config.checkpointing_frequency == 0 and epoch != config.epochs_cnt and epoch != 0:
+    if epoch % config.checkpointing_frequency == 0 and epoch != config.epochs_cnt:
         print("Creating a checkpoint")
 
         create_checkpoint(model, optimizer, lr_scheduler, config, epoch, step, log_writer)
@@ -84,19 +84,21 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
     lr_scheduler = get_lr_scheduler(config, optimizer, num_training_steps)
     eval_steps = config.eval_steps
 
+    progress_bar = tqdm(range(num_training_steps))
+
     if config.use_checkpoint:
         ch = CheckpointReader(config.checkpoint_path, config.checkpoint_epoch)
         ch.load_optimizer(optimizer, device)
         ch.load_lr_scheduler(lr_scheduler, device)
-
-    progress_bar = tqdm(range(num_training_steps))
+        progress_bar.update(config.checkpoint_epoch * len(train_dataloader))
+    
 
     train_loss = 0
 
     step = 0
-    start_epoch = 0 if not config.use_checkpoint else config.checkpoint_epoch
+    start_epoch = 1 if not config.use_checkpoint else config.checkpoint_epoch + 1
     model.train()
-    for epoch in range(start_epoch, num_epochs):
+    for epoch in range(start_epoch, num_epochs+1):
         for batch in train_dataloader:
             if device.type != "cpu":
                 batch = {k: v.to(device) for k, v in batch.items()}
@@ -125,7 +127,7 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
                 log_writer.add_scalar("Eval accuracy", accuracy, step)
                 log_writer.add_scalar("lr", lr_scheduler.get_last_lr()[0], step)
 
-                print(f"Epoch: {epoch}/{num_epochs}, step: {step}/{num_training_steps}")
+                print(f"Epoch: {epoch}/{num_epochs}, step: {step + log_writer.start_step}/{num_training_steps}")
                 print(f"\tAvg train loss: {train_avg_loss:.5f}, Avg eval loss: {eval_avg_loss:.5f}, eval_accuracy: {accuracy:.5f}")
 
             progress_bar.update(1)

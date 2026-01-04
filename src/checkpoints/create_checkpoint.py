@@ -8,7 +8,7 @@ from src.log_writer import LogWriter
 
 
 def create_checkpoint(model, optimizer, lr_scheduler, config: TrainingConfig, epoch, step, log_writer: LogWriter):
-    dir = os.path.join(config.log_dir, "checkpoints", f"epoch_{epoch + log_writer.start_epoch}")
+    dir = os.path.join(config.log_dir, "checkpoints", f"epoch_{epoch}")
     os.makedirs(dir, exist_ok=True)
 
     model.save_pretrained(dir)
