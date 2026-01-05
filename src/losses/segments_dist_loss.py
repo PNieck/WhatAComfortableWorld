@@ -24,7 +24,7 @@ def gaussian1d(mu,sigma,res,device='cpu'):
   return torch.exp(-0.5*((x-mu)/sigma)**2) #* 1/(s*np.sqrt(2*np.pi)) 
 
 
-class NeighborhoodLoss:
+class SegmentDistLoss:
     def __init__(self, device):
         self.base_loss_fun = nn.CrossEntropyLoss(ignore_index=-100)
 
@@ -66,8 +66,10 @@ class NeighborhoodLoss:
             batch_logits = batch_logits.to("cpu")
             batch_labels = batch_labels.to("cpu")
 
-            floor_plan_ergo = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
-            floor_plan_ergo = torch.min(floor_plan_ergo, self.max_ergo_loss)
+            # TODO: change
+            # floor_plan_ergo = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
+            # floor_plan_ergo = torch.min(floor_plan_ergo, self.max_ergo_loss)
+            floor_plan_ergo = 0.5
             weight = 1.0 - floor_plan_ergo / self.max_ergo_loss
 
             std_loss = self.cc_loss(batch_logits.unsqueeze(0), batch_labels.unsqueeze(0))
@@ -208,12 +210,23 @@ class NeighborhoodLoss:
 
         door_points = torch.stack([door_x1, door_y1, door_x2, door_y2]).view(2, 2)
 
+        door_starts = door_points.unsqueeze(0)
+        door_ends = torch.roll(door_starts, -1, 1)
+
         losses = torch.empty((len(entrances_idx), plan_ids.shape[0]), device=device)
 
         for i, entrance_id in enumerate(entrances_idx):
             entrance_points = self._room_coords(plan_ids, entrance_id)
 
-            distances = torch.cdist(door_points, entrance_points).view(entrance_points.shape[0], -1)
+            entrance_starts = entrance_points
+            entrance_ends = torch.roll(entrance_points, -1, 1)
+
+            distances = self.segment_segment_distance_double_batch(
+                door_starts, door_ends,
+                entrance_starts, entrance_ends
+            )
+
+            distances = distances.view(entrance_points.shape[0], -1)
             loss = torch.sum(distances * F.softmin(distances * self.beta, -1), -1)
 
             losses[i, :] = loss
@@ -259,10 +272,21 @@ class NeighborhoodLoss:
         for i, balcony_id in enumerate(balconies_idx):
             balcony_coords = self._room_coords(plan_ids, balcony_id)
 
+            balcony_starts = balcony_coords
+            balcony_ends = torch.roll(balcony_coords, -1, 1)
+
             for j, neighbor_id in enumerate(neighbors_idx):
                 neighbor_coords = self._room_coords(plan_ids, neighbor_id)
 
-                distances = torch.cdist(balcony_coords, neighbor_coords).view(interp_values_cnt, -1)
+                neighbor_starts = neighbor_coords
+                neighbor_ends = torch.roll(neighbor_coords, -1, 1)
+
+                distances = self.segment_segment_distance_double_batch(
+                    balcony_starts, balcony_ends,
+                    neighbor_starts, neighbor_ends
+                )
+
+                distances = distances.view(interp_values_cnt, -1)
                 loss = torch.sum(distances * F.softmin(distances * self.beta, -1), -1)
 
                 losses[i, j, :] = loss
@@ -296,10 +320,21 @@ class NeighborhoodLoss:
         for i, main_room_id in enumerate(main_rooms_idx):
             main_room_coords = self._room_coords(plan_ids, main_room_id)
 
+            main_rooms_starts = main_room_coords
+            main_rooms_ends = torch.roll(main_room_coords, -1, 1)
+
             for j, neighbor_id in enumerate(neighbors_idx):
                 neighbor_coords = self._room_coords(plan_ids, neighbor_id)
 
-                distances = torch.cdist(main_room_coords, neighbor_coords).view(interp_values_cnt, -1)
+                neighbor_starts = neighbor_coords
+                neighbor_ends = torch.roll(neighbor_coords, -1, 1)
+
+                distances = self.segment_segment_distance_double_batch(
+                    main_rooms_starts, main_rooms_ends,
+                    neighbor_starts, neighbor_ends
+                )
+
+                distances = distances.view(interp_values_cnt, -1)
                 loss = torch.sum(distances * F.softmin(distances * self.beta, -1), -1)
 
                 losses[i, j, :] = loss
@@ -308,6 +343,56 @@ class NeighborhoodLoss:
         losses = losses.mean(0)
 
         return losses
+    
+
+    def segment_segment_distance_double_batch(
+        self, p, p2, q, q2, eps=1e-9
+    ):
+        """
+        Double-batch all-pairs segment–segment distance.
+
+        p, p2, q, q2: (A, B, D)
+        returns: (A, B, B)
+        """
+
+        # Direction vectors
+        u = p2 - p          # (A, B, D)
+        v = q2 - q          # (A, B, D)
+
+        # Expand for pairwise computation
+        p = p[:, :, None, :]    # (A, B, 1, D)
+        q = q[:, None, :, :]    # (A, 1, B, D)
+
+        u = u[:, :, None, :]    # (A, B, 1, D)
+        v = v[:, None, :, :]    # (A, 1, B, D)
+
+        w = p - q               # (A, B, B, D)
+
+        # Dot products
+        a = (u * u).sum(dim=-1)     # (A, B, 1)
+        b = (u * v).sum(dim=-1)     # (A, B, B)
+        c = (v * v).sum(dim=-1)     # (A, 1, B)
+        d = (u * w).sum(dim=-1)     # (A, B, B)
+        e = (v * w).sum(dim=-1)     # (A, B, B)
+
+        # Solve for closest points
+        D = a * c - b * b
+        D = D + eps
+
+        t = (b * e - c * d) / D
+        s = (a * e - b * d) / D
+
+        t = t.clamp(0.0, 1.0)
+        s = s.clamp(0.0, 1.0)
+
+        # Closest points
+        closest_p = p + t[..., None] * u    # (A, B, B, D)
+        closest_q = q + s[..., None] * v    # (A, B, B, D)
+
+        diff = closest_p - closest_q
+        dist2 = (diff * diff).sum(dim=-1)   # (A, B, B)
+
+        return dist2
 
 
     def _find_rooms_indices(self, plan_ids: torch.Tensor, room_type: RoomType):
