@@ -33,7 +33,7 @@ class NeighborhoodLoss:
 
         self.beta = 10.0
 
-        self.max_ergo_loss = torch.ones(1, device=device) * 30.0
+        self.max_ergo_loss = torch.ones(1, device="cpu") * 30.0
 
 
     def update_max_ergo_loss(self, train_dataloader: DataLoader, device):

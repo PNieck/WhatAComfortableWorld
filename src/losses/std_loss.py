@@ -10,7 +10,7 @@ class StdLoss:
     def __call__(self, output, labels: torch.Tensor):
         logits: torch.Tensor = output.logits
 
-        loss_sum = torch.zeros(1)
+        loss_sum = torch.zeros(1, device=labels.device)
 
         for i in range(labels.size(0)):
             batch_logits = logits[i,:,:]

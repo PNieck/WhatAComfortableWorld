@@ -33,8 +33,8 @@ class MeanValuesLoss:
 
         self.beta = 10.0
 
-        self.max_ergo_loss = torch.ones(1, device=device) * 10.0
-        self.min_ergo_loss = torch.ones(1, device=device) * 5.0
+        self.max_ergo_loss = torch.ones(1, device="cpu") * 10.0
+        self.min_ergo_loss = torch.ones(1, device="cpu") * 5.0
 
 
     def __call__(self, output, labels: torch.Tensor):
