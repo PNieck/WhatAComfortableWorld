@@ -33,25 +33,7 @@ class SegmentDistLoss:
 
         self.beta = 10.0
 
-        self.max_ergo_loss = torch.ones(1, device=device) * 30.0
-
-
-    def update_max_ergo_loss(self, train_dataloader: DataLoader, device):
-        self.max_ergo_loss = torch.zeros(1, device=device)
-        
-        with torch.no_grad():
-            for batch in train_dataloader:
-                labels: torch.Tensor = batch["labels"]
-                if labels.device != device:
-                    labels = labels.to(device)
-
-                for i in range(labels.shape[0]):
-                    batch_labels: torch.Tensor = labels[i]
-
-                    ergo_loss = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
-                    self.max_ergo_loss = torch.max(self.max_ergo_loss, ergo_loss)
-
-        self.max_ergo_loss = self.max_ergo_loss.to("cpu")
+        self.max_ergo_loss = torch.ones(1, device="cpu") * 2_000.0
 
 
     def __call__(self, output, labels: torch.Tensor):
@@ -66,10 +48,8 @@ class SegmentDistLoss:
             batch_logits = batch_logits.to("cpu")
             batch_labels = batch_labels.to("cpu")
 
-            # TODO: change
-            # floor_plan_ergo = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
-            # floor_plan_ergo = torch.min(floor_plan_ergo, self.max_ergo_loss)
-            floor_plan_ergo = 0.5
+            floor_plan_ergo = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
+            floor_plan_ergo = torch.min(floor_plan_ergo, self.max_ergo_loss)
             weight = 1.0 - floor_plan_ergo / self.max_ergo_loss
 
             std_loss = self.cc_loss(batch_logits.unsqueeze(0), batch_labels.unsqueeze(0))
@@ -189,7 +169,7 @@ class SegmentDistLoss:
             valid_losses += 1
 
         if valid_losses > 0:
-            return ergo_loss / valid_losses
+            return ergo_loss / (valid_losses * 1_000)
         
         return -torch.ones(1, device=device)
 
@@ -210,8 +190,8 @@ class SegmentDistLoss:
 
         door_points = torch.stack([door_x1, door_y1, door_x2, door_y2]).view(2, 2)
 
-        door_starts = door_points.unsqueeze(0)
-        door_ends = torch.roll(door_starts, -1, 1)
+        door_starts = door_points[None, None, 0]
+        door_ends = door_points[None, None, 1]
 
         losses = torch.empty((len(entrances_idx), plan_ids.shape[0]), device=device)
 
@@ -345,52 +325,72 @@ class SegmentDistLoss:
         return losses
     
 
+    def point_segment_distance_squared(self, p, a, b, eps=1e-9):
+        """
+        p : (..., D)
+        a,b : (..., D)
+        returns: (...,)
+        """
+        ab = b - a
+        ap = p - a
+
+        t = (ap * ab).sum(dim=-1) / ((ab * ab).sum(dim=-1) + eps)
+        t = t.clamp(0.0, 1.0)
+
+        closest = a + t[..., None] * ab
+        diff = p - closest
+        return (diff * diff).sum(dim=-1)
+    
+
     def segment_segment_distance_double_batch(
         self, p, p2, q, q2, eps=1e-9
     ):
-        """
-        Double-batch all-pairs segment–segment distance.
+        u = p2 - p
+        v = q2 - q
 
-        p, p2, q, q2: (A, B, D)
-        returns: (A, B, B)
-        """
+        # Expand for pairwise
+        p_ = p[:, :, None, :]
+        q_ = q[:, None, :, :]
+        u_ = u[:, :, None, :]
+        v_ = v[:, None, :, :]
 
-        # Direction vectors
-        u = p2 - p          # (A, B, D)
-        v = q2 - q          # (A, B, D)
+        w = p_ - q_
 
-        # Expand for pairwise computation
-        p = p[:, :, None, :]    # (A, B, 1, D)
-        q = q[:, None, :, :]    # (A, 1, B, D)
+        a = (u_ * u_).sum(dim=-1)
+        b = (u_ * v_).sum(dim=-1)
+        c = (v_ * v_).sum(dim=-1)
+        d = (u_ * w).sum(dim=-1)
+        e = (v_ * w).sum(dim=-1)
 
-        u = u[:, :, None, :]    # (A, B, 1, D)
-        v = v[:, None, :, :]    # (A, 1, B, D)
-
-        w = p - q               # (A, B, B, D)
-
-        # Dot products
-        a = (u * u).sum(dim=-1)     # (A, B, 1)
-        b = (u * v).sum(dim=-1)     # (A, B, B)
-        c = (v * v).sum(dim=-1)     # (A, 1, B)
-        d = (u * w).sum(dim=-1)     # (A, B, B)
-        e = (v * w).sum(dim=-1)     # (A, B, B)
-
-        # Solve for closest points
         D = a * c - b * b
-        D = D + eps
 
-        t = (b * e - c * d) / D
-        s = (a * e - b * d) / D
+        # ---------- non-parallel case ----------
+        t = (b * e - c * d) / (D + eps)
+        s = (a * e - b * d) / (D + eps)
 
         t = t.clamp(0.0, 1.0)
         s = s.clamp(0.0, 1.0)
 
-        # Closest points
-        closest_p = p + t[..., None] * u    # (A, B, B, D)
-        closest_q = q + s[..., None] * v    # (A, B, B, D)
+        cp = p_ + t[..., None] * u_
+        cq = q_ + s[..., None] * v_
 
-        diff = closest_p - closest_q
-        dist2 = (diff * diff).sum(dim=-1)   # (A, B, B)
+        dist2_np = ((cp - cq) ** 2).sum(dim=-1)
+
+        # ---------- parallel case fallback ----------
+        d1 = self.point_segment_distance_squared(p_ , q_ , q_ + v_, eps)
+        d2 = self.point_segment_distance_squared(p_ + u_, q_ , q_ + v_, eps)
+        d3 = self.point_segment_distance_squared(q_ , p_ , p_ + u_, eps)
+        d4 = self.point_segment_distance_squared(q_ + v_, p_ , p_ + u_, eps)
+
+        dist2_parallel = torch.minimum(
+            torch.minimum(d1, d2),
+            torch.minimum(d3, d4),
+        )
+
+        # ---------- select based on parallelism ----------
+        parallel = D.abs() < eps
+
+        dist2 = torch.where(parallel, dist2_parallel, dist2_np)
 
         return dist2
 
