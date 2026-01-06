@@ -3,7 +3,7 @@ general:
 
 paths:
   input_data: "./data/gpt2_main/input/"
-  trained_model: "2026-01-05-05:08:07_std_loss_test"
+  # trained_model: "2025-12-03-10:25:07_ignore_prompt_case"
 
 preprocessing:
   test_size: 0.05
@@ -18,7 +18,7 @@ preprocessing:
 
 model:
   name: "main_model"
-  input_model_path: "2025-12-25-11:55:50_main_gpt2_25_layers_base"
+  input_model_path: "2025-12-25-11:55:51_main_gpt2_25_layers_cyclic_corners_std_lr"
   max_seq_len: 320
   with_xy_indices: True
   with_corner_indices: True

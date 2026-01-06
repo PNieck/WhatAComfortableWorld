@@ -1,9 +1,6 @@
 general:
   seed: 42
 
-paths:
-  input_data: "./data/gpt2_fast_test/input"
-
 preprocessing:
   test_size: 0.05
   validate_size: 0.005
@@ -16,13 +13,11 @@ preprocessing:
         percentage: 0.4
 
 model:
-  input_model_path: "2026-01-02-19:22:20_fast_test_training"
-  from_checkpoint: True
-  checkpoint_epoch: 3
+  input_model_path: "runs/2026-01-06-13:57:53_fast_test_training"
   max_seq_len: 320
 
 training:
-  loop_type: "custom"
+  input_data: "./data/gpt2_fast_test/input"
   epochs: 10
   lr: 1e-4
   batch_size: 32
