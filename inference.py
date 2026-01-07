@@ -1,9 +1,5 @@
 import argparse
-import yaml
-try:
-    from yaml import CLoader as Loader
-except ImportError:
-    from yaml import Loader
+import os
 
 import torch
 
@@ -14,7 +10,6 @@ from src.dataset_loader import load_floor_plans_dataset, Split
 from src.models import (
     print_model_size,
     get_pretrained_model,
-    preprocess_model_config
 )
 
 from src.validation_metrics import (
@@ -35,34 +30,52 @@ def main():
     p = argparse.ArgumentParser(description="Generate floor plans from trained model")
 
     p.add_argument(
-        "path_to_config",
+        "path_to_model",
         type=str,
-        help="Path to the configuration file"
+        help="Path to the saved model"
     )
+
+    p.add_argument(
+        "path_to_dataset",
+        type=str,
+        help="Path to preprocessed data from RPLAN dataset"
+    )
+
+    p.add_argument(
+        "--masked",
+        action="store_true",
+        help="Use masked inference. If provided, overrides 'use_masked_inference' from config."
+    )
+
+    p.add_argument(
+        "--draw_images",
+        action="store_true",
+        help="If specified, generated images are displayed on a screen"
+    )
+
+    p.add_argument(
+        "--save_imgs",
+        dest="save_imgs",
+        type=str,
+        help="Output directory for generated floor plan images"
+    )
+
     args = p.parse_args()
 
-    with open(args.path_to_config, "r") as f:
-        config = yaml.load(f, Loader=Loader)
-
-    paths_config = config["paths"]
-    model_config = config["model"]
-    inference_config = config["inference"]
-
     tokenizer = FloorPlanTokenizer()
-    model_config = preprocess_model_config(model_config, tokenizer)
-    model = get_pretrained_model(model_config)
+    model = get_pretrained_model(args.path_to_model)
     print_model_size(model)
     print(model)
 
-    if "use_masked_inference" in inference_config:
-        model.use_masked_inference = inference_config["use_masked_inference"]
+    if args.masked:
+        model.use_masked_inference = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Using device: {device}')
     model.to(device)
     model.eval()
 
-    dataset = load_floor_plans_dataset(paths_config["input_data"], Split.VALID)
+    dataset = load_floor_plans_dataset(args.path_to_dataset, Split.VALID)
 
     pars_rate = ParsabilityRate()
     validity_rate = GeomValidityRate()
@@ -76,7 +89,7 @@ def main():
     ergonomics = ErgonomicsTest()
 
     # TODO: set bigger batch size
-    generator = Generator(model, tokenizer, dataset, 1)
+    generator = Generator(model, tokenizer, dataset, 32)
 
     done = 0
     total = len(dataset["valid"])
@@ -94,9 +107,15 @@ def main():
         base_metrics.measure(batch)
         ergonomics.measure(floor_plans)
 
-        # for floor_plan in floor_plans:
-        #     draw_floor_plan_to_image(floor_plan, f"data/imgs/generated_masked/{i}.png")
-        #     i += 1
+        if args.save_imgs is not None:
+            for plan in floor_plans:
+                img_path = os.path.join(args.save_imgs, f"{i}.png")
+                draw_floor_plan_to_image(plan, img_path)
+                i += 1
+
+        if args.draw_images:
+            for plan in floor_plans:
+                draw_floor_plan(plan)
 
         done += len(batch)
         print(f"Done {done}/{total}")
