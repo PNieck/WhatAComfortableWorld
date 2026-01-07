@@ -90,7 +90,7 @@ class CustomGPT2(GPT2LMHeadModel):
     
 
     def mask_logits_for_inference(self, input_ids: torch.Tensor, logits: torch.Tensor, use_cache: bool):
-        assert use_cache == True, "Not using cache is not supported"
+        assert use_cache == True, "Masked inference requires cache to be enabled"
         assert input_ids is not None
 
         for batch_no in range(logits.shape[0]):
@@ -182,17 +182,31 @@ class CustomGPT2(GPT2LMHeadModel):
 
 
     def mask_for_first_x_in_room(self, logits, batch_no):
-        polygon = self.cached_remaining_empty_spaces[batch_no]
-        (min_x, max_x) = self.geometry_x_bounds(polygon)
+        empty_space = self.cached_remaining_empty_spaces[batch_no]
+        (min_x, max_x) = self.geometry_x_bounds(empty_space)
 
         is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
 
-        # TODO: faster algorithm
-        for x in range(min_x, max_x+1):
-            line = shapely.LineString([(x, 0), (x, 256)])
+        match empty_space.geom_type:
+            case "Polygon":               
+                (min_x, max_x) = self.geometry_x_bounds(empty_space)
 
-            if polygon.intersects(line):
-                is_valid[tokens.coord_token_id(x)] = True
+                min_token = tokens.coord_token_id(min_x)
+                max_token = tokens.coord_token_id(max_x)
+
+                is_valid[min_token:(max_token+1)] = True
+
+            case "MultiPolygon":
+                for polygon in empty_space.geoms:
+                    (min_x, max_x) = self.geometry_x_bounds(polygon)
+
+                    min_token = tokens.coord_token_id(min_x)
+                    max_token = tokens.coord_token_id(max_x)
+
+                    is_valid[min_token:(max_token+1)] = True
+
+            case _:
+                raise Exception(f"Unexpected geometry type {empty_space.geom_type}")
 
         logits[batch_no, :, ~is_valid] = -torch.inf
 
