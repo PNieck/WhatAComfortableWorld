@@ -143,7 +143,6 @@ class CustomGPT2(GPT2LMHeadModel):
 
             self.cached_prev_token_to_gen[batch_no] = token_to_generate.value
             
-
         return logits
 
 
@@ -152,7 +151,7 @@ class CustomGPT2(GPT2LMHeadModel):
             return TokenToGenerateType.FirstRoom
         
         id = input_ids[batch_no, 0]
-        if id >= tokens.MIN_ROOM_ID and id <= tokens.MAX_ROOM_ID:
+        if self.room_generation_is_finished(id, batch_no):
             self.finish_room_generation(batch_no)
             if self.cached_remaining_empty_spaces[batch_no].is_empty:
                 return TokenToGenerateType.EndToken
@@ -168,6 +167,20 @@ class CustomGPT2(GPT2LMHeadModel):
             result = TokenToGenerateType.NthXInRoom
             
         return result
+
+
+    def room_generation_is_finished(self, id, batch_no: int) -> bool:
+        if tokens.is_room(id):
+            return True
+
+        coords = self.cached_room_in_generation[batch_no]
+        if len(coords) < 10:
+            return False
+        
+        first_corner = coords[:2]
+        last_corner = coords[-2:]
+
+        return first_corner[0] == last_corner[0] and first_corner[1] == last_corner[1]
 
 
     def mask_for_first_room(self, logits: torch.Tensor):
@@ -577,7 +590,8 @@ class CustomGPT2(GPT2LMHeadModel):
         max_x = int(max_x)
 
         return (min_x, max_x)
-    
+
+
     def geometry_y_bounds(self, geom):
         (_, min_y, _, max_y) = geom.bounds
 
