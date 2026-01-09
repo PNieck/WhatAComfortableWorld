@@ -1,5 +1,6 @@
 import argparse
 import os
+import json
 
 import torch
 
@@ -60,6 +61,13 @@ def main():
         help="Output directory for generated floor plan images"
     )
 
+    p.add_argument(
+        "--save_output",
+        dest="save_output",
+        type=str,
+        help="Output directory metrics"
+    )
+
     args = p.parse_args()
 
     tokenizer = FloorPlanTokenizer()
@@ -89,10 +97,18 @@ def main():
     ergonomics = ErgonomicsTest()
 
     # TODO: set bigger batch size
-    generator = Generator(model, tokenizer, dataset, 32)
+    batch = 32
+    if args.masked:
+        batch = 1
+
+    generator = Generator(model, tokenizer, dataset, batch)
 
     done = 0
     total = len(dataset["valid"])
+
+    if args.save_imgs is not None:
+        if not os.path.exists(args.save_imgs):
+            os.mkdir(args.save_imgs)
 
     i = 0
     for batch in generator.generate_in_batches():
@@ -119,6 +135,9 @@ def main():
 
         done += len(batch)
         print(f"Done {done}/{total}")
+
+    print(f"Generations fails: {generator.fails}")
+    print(f"Validity problems {model.validity_problems}")
 
     print(f"Parsability: {pars_rate.rate()}")
     print(f"Examples {pars_rate.examples_cnt}")
@@ -165,6 +184,46 @@ def main():
     print(f"Perfect ergonomics floor plans: {ergonomics.perfect_floor_plans}/{ergonomics.examples_cnt} ({ergonomics.correctness_rate()}%)")
     if ergonomics.nan_losses > 0:
         print(f"Nan neighbor losses: {ergonomics.nan_losses}")
+
+    if args.save_output is not None:
+        output = {}
+
+        output["Generations fails"] = generator.fails
+        output["Validity generation problems"] = model.validity_problems
+
+        output["Parsability"] = {
+            "rate": pars_rate.rate(),
+            "examples": pars_rate.examples_cnt,
+            "failures": pars_rate.invalid_seq,
+            "error_types": pars_rate.error_types
+        }
+
+        output["Validity"] = {
+            "rate": validity_rate.rate(),
+            "valid examples": validity_rate.valid_examples
+        }
+
+        output["Simplicity rate"] = geom_simplicity.rate()
+
+        output["Coverage rate"] = cov_rate.correctness_rate()
+
+        output["Overlapping rate"] = room_overlap_rate.correctness_rate()
+
+        output["Base"] = base_metrics.success_rate()
+
+        output["Required rooms"] = required_rooms.correctness_rate()
+
+        output["Narrow spaces"] = narrow_spaces.correctness_rate()
+
+        output["Ergonomic loss"] = {
+            "avg loss": ergonomics.avg_loss(),
+            "rate": ergonomics.correctness_rate()
+        }
+
+        with open(args.save_output, 'w') as f:
+            json.dump(output, f, indent=4)
+
+
 
 if __name__ == "__main__":
     main()
