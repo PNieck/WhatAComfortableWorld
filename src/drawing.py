@@ -5,21 +5,26 @@ import numpy as np
 
 from src.floor_plan import FloorPlan, RoomType, Room
 
+pastel_colors = [
+    "#A6C8E0", "#F4B6A6", "#B8D8BA", "#F2C1C1", "#C6B7E2",
+    "#D3B8AE", "#F0CDE3", "#CFCFCF", "#D8E2A8", "#BFE4E8",
+    "#E1ECF7", "#FFE0B5", "#CFEBC7"
+]
 
 _room2color = {
-    RoomType.LivingRoom: "red",
-    RoomType.MasterRoom: "green",
-    RoomType.Kitchen: "blue",
-    RoomType.Bathroom: "orange",
-    RoomType.DiningRoom: "violet",
-    RoomType.ChildRoom: "olive",
-    RoomType.StudyRoom: "aqua",
-    RoomType.SecondRoom: "pink",
-    RoomType.GuestRoom: "silver",
-    RoomType.Balcony: "magenta",
-    RoomType.Entrance: "gold",
-    RoomType.Storage: "navy",
-    RoomType.WallIn: "brown"
+    RoomType.LivingRoom: pastel_colors[0],
+    RoomType.MasterRoom: pastel_colors[1],
+    RoomType.Kitchen:    pastel_colors[2],
+    RoomType.Bathroom:   pastel_colors[3],
+    RoomType.DiningRoom: pastel_colors[4],
+    RoomType.ChildRoom:  pastel_colors[5],
+    RoomType.StudyRoom:  pastel_colors[6],
+    RoomType.SecondRoom: pastel_colors[7],
+    RoomType.GuestRoom:  pastel_colors[8],
+    RoomType.Balcony:    pastel_colors[9],
+    RoomType.Entrance:   pastel_colors[10],
+    RoomType.Storage:    pastel_colors[11],
+    RoomType.WallIn:     pastel_colors[12]
 }
 
 
@@ -87,7 +92,7 @@ def draw_floor_plan(floor_plan: FloorPlan, draw_room_corners: bool = False):
     plt.show()
 
 
-def draw_floor_plan_to_image(floor_plan: FloorPlan, filename: str):
+def draw_floor_plan_to_image(floor_plan: FloorPlan, filename: str, with_legend: bool=True):
     fig, ax = plt.subplots()
 
     ax.axis("off")
@@ -106,6 +111,9 @@ def draw_floor_plan_to_image(floor_plan: FloorPlan, filename: str):
     plt.ylim(0, 250)
     plt.xlim(0, 250)
     plt.gca().invert_yaxis()
+
+    if with_legend:
+        plt.legend()
 
     plt.savefig(filename)
 
