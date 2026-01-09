@@ -16,7 +16,9 @@ class Generator:
         self.dataset = dataset
         self.batch_size = batch_size
 
-    def _prepare_prompt(self, seq: str) -> str:
+        self.fails = 0
+
+    def _prepare_prompt(self, seq: str):
         match = re.search(r"<Room \d+>", seq)
         if not match:
             raise ValueError("No rooms in sequence")
@@ -56,16 +58,19 @@ class Generator:
             with torch.no_grad():
 
                 # Greedy decoding
-                outputs = self.model.generate(
-                    **inputs,
-                    max_length = self.model.max_seq_len,
-                    do_sample=False,
-                    eos_token_id=tokens.END_SEQ_TOKEN_ID,
-                    pad_token_id=tokens.PAD_TOKEN_ID,
-                    bos_token_id=tokens.START_SEQ_TOKEN_ID,
-                    num_beams=1,
-                    use_cache=True
-                )
+                try:
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_length = self.model.max_seq_len,
+                        do_sample=False,
+                        eos_token_id=tokens.END_SEQ_TOKEN_ID,
+                        pad_token_id=tokens.PAD_TOKEN_ID,
+                        bos_token_id=tokens.START_SEQ_TOKEN_ID,
+                        num_beams=1,
+                        use_cache=True
+                    )
+                except:
+                    self.fails += 1
 
             generated_sequences = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
             
