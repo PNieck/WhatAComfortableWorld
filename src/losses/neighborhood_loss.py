@@ -86,7 +86,50 @@ class NeighborhoodLoss:
 
             loss_sum += loss
 
-        return loss_sum
+        return loss_sum.squeeze()
+    
+
+    def ergonomic_loss_output(self, output, labels: torch.Tensor):
+        logits: torch.Tensor = output.logits
+
+        loss_sum = torch.zeros(1)
+
+        for i in range(labels.size(0)):
+            batch_logits = logits[i,:,:]
+            batch_labels = labels[i,:]
+
+            batch_logits = batch_logits.to("cpu")
+            batch_labels = batch_labels.to("cpu")
+
+            inter_val, is_valid = self._get_prediction(batch_labels, batch_logits)
+            plan_ids = self._replace_gt_with_predicted_values(batch_labels, inter_val, is_valid)
+
+            if plan_ids.numel() == 0:
+                continue
+
+            ergo_loss = self._ergonomic_loss(plan_ids)
+            loss_sum += ergo_loss
+
+        return loss_sum.squeeze()
+    
+
+    def std_loss(self, output, labels: torch.Tensor):
+        logits: torch.Tensor = output.logits
+
+        loss_sum = torch.zeros(1)
+
+        for i in range(labels.size(0)):
+            batch_logits = logits[i,:,:]
+            batch_labels = labels[i,:]
+
+            batch_logits = batch_logits.to("cpu")
+            batch_labels = batch_labels.to("cpu")
+
+            std_loss = self.cc_loss(batch_logits.unsqueeze(0), batch_labels.unsqueeze(0))
+            
+            loss_sum += std_loss
+
+        return loss_sum.squeeze()
     
 
     def ergonomic_loss(self, floor_plan_ids: torch.Tensor):
