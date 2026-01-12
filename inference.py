@@ -68,6 +68,13 @@ def main():
         help="Output directory metrics"
     )
 
+    p.add_argument(
+        "--save_seq",
+        dest="save_seq",
+        type=str,
+        help="Output directory for generated sequences"
+    )
+
     args = p.parse_args()
 
     tokenizer = FloorPlanTokenizer()
@@ -110,8 +117,18 @@ def main():
         if not os.path.exists(args.save_imgs):
             os.mkdir(args.save_imgs)
 
+    if args.save_seq is not None:
+        file = open(args.save_seq, "w")
+    else:
+        file = None
+
     i = 0
     for batch in generator.generate_in_batches():
+        if file is not None:
+            for seq in batch:
+                file.write(seq)
+                file.write("\n")
+
         floor_plans = pars_rate.parse(batch)
         floor_plans = validity_rate.filter_out_invalid(floor_plans)
         geom_simplicity.simplify(floor_plans)
@@ -135,6 +152,9 @@ def main():
 
         done += len(batch)
         print(f"Done {done}/{total}")
+
+    if file is not None:
+        file.close()
 
     print(f"Generations fails: {generator.fails}")
     print(f"Validity problems {model.validity_problems}")
