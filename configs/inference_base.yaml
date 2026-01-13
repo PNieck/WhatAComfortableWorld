@@ -3,7 +3,7 @@ general:
 
 paths:
   input_data: "./data/gpt2_main/input/"
-  trained_model: "2026-01-05-05:08:07_std_loss_test"
+  trained_model: "2025-12-03-10:25:07_ignore_prompt_case"
 
 preprocessing:
   test_size: 0.05

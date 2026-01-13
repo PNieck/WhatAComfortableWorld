@@ -14,9 +14,8 @@ preprocessing:
         percentage: 0.4
 
 model:
-  name: "fast_test_model_gpt2"
-  type: "gpt2"
   with_xy_indices: True
+  with_corner_indices: False
   max_seq_len: 320
   n_layer: 3
   n_head: 2

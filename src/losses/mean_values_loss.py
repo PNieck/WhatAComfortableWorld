@@ -24,7 +24,7 @@ def gaussian1d(mu,sigma,res,device='cpu'):
   return torch.exp(-0.5*((x-mu)/sigma)**2) #* 1/(s*np.sqrt(2*np.pi)) 
 
 
-class NeighborhoodLoss:
+class MeanValuesLoss:
     def __init__(self, device):
         self.base_loss_fun = nn.CrossEntropyLoss(ignore_index=-100)
 
@@ -33,25 +33,8 @@ class NeighborhoodLoss:
 
         self.beta = 10.0
 
-        self.max_ergo_loss = torch.ones(1, device="cpu") * 30.0
-
-
-    def update_max_ergo_loss(self, train_dataloader: DataLoader, device):
-        self.max_ergo_loss = torch.zeros(1, device=device)
-        
-        with torch.no_grad():
-            for batch in train_dataloader:
-                labels: torch.Tensor = batch["labels"]
-                if labels.device != device:
-                    labels = labels.to(device)
-
-                for i in range(labels.shape[0]):
-                    batch_labels: torch.Tensor = labels[i]
-
-                    ergo_loss = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
-                    self.max_ergo_loss = torch.max(self.max_ergo_loss, ergo_loss)
-
-        self.max_ergo_loss = self.max_ergo_loss.to("cpu")
+        self.max_ergo_loss = torch.ones(1, device="cpu") * 10.0
+        self.min_ergo_loss = torch.ones(1, device="cpu") * 5.0
 
 
     def __call__(self, output, labels: torch.Tensor):
@@ -67,8 +50,13 @@ class NeighborhoodLoss:
             batch_labels = batch_labels.to("cpu")
 
             floor_plan_ergo = self._ergonomic_loss(batch_labels.unsqueeze(0).float())
-            floor_plan_ergo = torch.min(floor_plan_ergo, self.max_ergo_loss)
-            weight = 1.0 - floor_plan_ergo / self.max_ergo_loss
+
+            if floor_plan_ergo < self.min_ergo_loss:
+                weight = 1.0
+            else:
+                tmp = self.max_ergo_loss - self.min_ergo_loss
+                floor_plan_ergo = torch.min(floor_plan_ergo - self.min_ergo_loss, tmp)
+                weight = 1.0 - floor_plan_ergo / self.max_ergo_loss
 
             std_loss = self.cc_loss(batch_logits.unsqueeze(0), batch_labels.unsqueeze(0))
 
@@ -187,7 +175,7 @@ class NeighborhoodLoss:
             valid_losses += 1
 
         if valid_losses > 0:
-            return ergo_loss / valid_losses
+            return ergo_loss / (valid_losses * 10)
         
         return -torch.ones(1, device=device)
 
@@ -208,13 +196,17 @@ class NeighborhoodLoss:
 
         door_points = torch.stack([door_x1, door_y1, door_x2, door_y2]).view(2, 2)
 
+        door_mean = door_points.mean(0)
+
         losses = torch.empty((len(entrances_idx), plan_ids.shape[0]), device=device)
 
         for i, entrance_id in enumerate(entrances_idx):
             entrance_points = self._room_coords(plan_ids, entrance_id)
 
-            distances = torch.cdist(door_points, entrance_points).view(entrance_points.shape[0], -1)
-            loss = torch.sum(distances * F.softmin(distances * self.beta, -1), -1)
+            entrance_mean = entrance_points.mean(1)
+            diff = entrance_mean - door_mean
+
+            loss = torch.linalg.vector_norm(diff, dim=1)
 
             losses[i, :] = loss
 
@@ -258,12 +250,14 @@ class NeighborhoodLoss:
 
         for i, balcony_id in enumerate(balconies_idx):
             balcony_coords = self._room_coords(plan_ids, balcony_id)
+            balcony_mean = balcony_coords.mean(1)
 
             for j, neighbor_id in enumerate(neighbors_idx):
                 neighbor_coords = self._room_coords(plan_ids, neighbor_id)
+                neighbor_room_mean = neighbor_coords.mean(1)
 
-                distances = torch.cdist(balcony_coords, neighbor_coords).view(interp_values_cnt, -1)
-                loss = torch.sum(distances * F.softmin(distances * self.beta, -1), -1)
+                diff = balcony_mean - neighbor_room_mean
+                loss = torch.linalg.vector_norm(diff, dim=1)
 
                 losses[i, j, :] = loss
 
@@ -295,12 +289,14 @@ class NeighborhoodLoss:
 
         for i, main_room_id in enumerate(main_rooms_idx):
             main_room_coords = self._room_coords(plan_ids, main_room_id)
+            main_room_mean = main_room_coords.mean(1)
 
             for j, neighbor_id in enumerate(neighbors_idx):
                 neighbor_coords = self._room_coords(plan_ids, neighbor_id)
+                neighbor_room_mean = neighbor_coords.mean(1)
 
-                distances = torch.cdist(main_room_coords, neighbor_coords).view(interp_values_cnt, -1)
-                loss = torch.sum(distances * F.softmin(distances * self.beta, -1), -1)
+                diff = main_room_mean - neighbor_room_mean
+                loss = torch.linalg.vector_norm(diff, dim=1)
 
                 losses[i, j, :] = loss
 
