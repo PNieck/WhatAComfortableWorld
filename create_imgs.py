@@ -6,7 +6,7 @@ from src.drawing import draw_floor_plan_to_image
 
 from torch.utils.data import DataLoader
 
-dataset = load_floor_plans_dataset("data/input", Split.VALID)
+dataset = load_floor_plans_dataset("data/gpt2_main/input", Split.VALID)
 data_loader = DataLoader(dataset["valid"]["text"], batch_size=1)
 
 i = 0
