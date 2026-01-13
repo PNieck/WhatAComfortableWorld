@@ -335,7 +335,8 @@ class CustomGPT2(GPT2LMHeadModel):
             case LineType.Vertical:
                 line = create_line((min_x, last_y), (max_x, last_y))
                 inter = empty_space_polygon.intersection(line)
-                inter = inter.difference(current_room_linestring)
+                if inter.geom_type != "Point":
+                    inter = inter.difference(current_room_linestring)
 
                 self.mask_x_direction(inter, last_point, is_valid)
 
@@ -358,13 +359,15 @@ class CustomGPT2(GPT2LMHeadModel):
                 if second_to_last_x < last_x:
                     line = create_line((last_x, last_y), (max_x, last_y))
                     inter = empty_space_polygon.intersection(line)
-                    inter = inter.difference(current_room_linestring)
+                    if inter.geom_type != "Point":
+                        inter = inter.difference(current_room_linestring)
                     self.mask_x_direction(inter, last_point, is_valid)
 
                 else:
                     line = create_line((min_x, last_y), (last_x, last_y))
                     inter = empty_space_polygon.intersection(line)
-                    inter = inter.difference(current_room_linestring)
+                    if inter.geom_type != "Point":
+                        inter = inter.difference(current_room_linestring)
                     self.mask_x_direction(inter, last_point, is_valid)
 
             case _:
@@ -404,20 +407,23 @@ class CustomGPT2(GPT2LMHeadModel):
                 case LineType.Horizontal:
                     line = create_line((prev_x, min_y), (prev_x, max_y))
                     inter = empty_space_polygon.intersection(line)
-                    inter = inter.difference(current_room_linestring)
+                    if inter.geom_type != "Point":
+                        inter = inter.difference(current_room_linestring)
                     self.mask_y_direction(inter, last_point, is_valid)
 
                 case LineType.Vertical:
                     if second_to_last_y < last_y:
                         line = create_line((prev_x, last_y), (prev_x, max_y))
                         inter = empty_space_polygon.intersection(line)
-                        inter = inter.difference(current_room_linestring)
+                        if inter.geom_type != "Point":
+                            inter = inter.difference(current_room_linestring)
                         self.mask_y_direction(inter, last_point, is_valid)
 
                     else:
                         line = create_line((prev_x, last_y), (prev_x, min_y))
                         inter = empty_space_polygon.intersection(line)
-                        inter = inter.difference(current_room_linestring)
+                        if inter.geom_type != "Point":
+                            inter = inter.difference(current_room_linestring)
                         self.mask_y_direction(inter, last_point, is_valid)
 
             # We cannot stay in the same place
