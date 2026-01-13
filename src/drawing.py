@@ -85,7 +85,11 @@ def draw_floor_plan(floor_plan: FloorPlan, draw_room_corners: bool = False):
     plt.ylim(0, 250)
     plt.xlim(0, 250)
     plt.gca().invert_yaxis()
-    plt.legend()
+
+    # Remove duplicate legend entries
+    handles, labels = ax.get_legend_handles_labels()
+    unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
+    ax.legend(*zip(*unique))
 
     plt.title(f'Floor plan {floor_plan.name}')
 
@@ -113,7 +117,10 @@ def draw_floor_plan_to_image(floor_plan: FloorPlan, filename: str, with_legend: 
     plt.gca().invert_yaxis()
 
     if with_legend:
-        plt.legend()
+        # Remove duplicate legend entries
+        handles, labels = ax.get_legend_handles_labels()
+        unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
+        ax.legend(*zip(*unique))
 
     plt.savefig(filename)
 
