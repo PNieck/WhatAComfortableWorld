@@ -266,13 +266,13 @@ class CustomGPT2(GPT2LMHeadModel):
 
 
     def mask_for_second_x_in_room(self, logits, batch_no):
-        empty_space = self.cached_remaining_empty_spaces[batch_no]
-        (min_x, max_x) = self.geometry_x_bounds(empty_space)
-
         first_x = self.cached_room_in_generation[batch_no][0]
         first_y = self.cached_room_in_generation[batch_no][1]
 
         first_point = shapely.Point(first_x, first_y)
+
+        empty_space = self._get_empty_space(batch_no, first_point)
+        (min_x, max_x) = self.geometry_x_bounds(empty_space)
 
         is_valid = torch.zeros(len(self.tokenizer), dtype=torch.bool)
 
@@ -298,10 +298,10 @@ class CustomGPT2(GPT2LMHeadModel):
             is_valid[last_y_token_id] = True
 
         else:
-            empty_space = self.cached_remaining_empty_spaces[batch_no]
-            (min_y, max_y) = self.geometry_y_bounds(empty_space)
-
             first_point = shapely.Point(first_x, first_y)
+
+            empty_space = self._get_empty_space(batch_no, first_point)
+            (min_y, max_y) = self.geometry_y_bounds(empty_space)
 
             line = create_line((last_x, min_y), (last_x, max_y))
             inter = empty_space.intersection(line)
@@ -324,10 +324,10 @@ class CustomGPT2(GPT2LMHeadModel):
 
         is_valid = self.get_is_valid_tensor_with_rooms_as_valid()
 
-        empty_space_polygon = self.cached_remaining_empty_spaces[batch_no]
-        (min_x, max_x) = self.geometry_x_bounds(empty_space_polygon)
-
         last_point = shapely.Point(last_x, last_y)
+
+        empty_space_polygon = self._get_empty_space(batch_no, last_point)
+        (min_x, max_x) = self.geometry_x_bounds(empty_space_polygon)
 
         current_room_linestring = self.get_linestring_of_current_room(batch_no)
 
@@ -393,10 +393,10 @@ class CustomGPT2(GPT2LMHeadModel):
             is_valid[second_y_token_id] = True
 
         else:
-            empty_space_polygon = self.cached_remaining_empty_spaces[batch_no]
-            (min_y, max_y) = self.geometry_y_bounds(empty_space_polygon)
-
             last_point = shapely.Point(last_x, last_y)
+
+            empty_space_polygon = self._get_empty_space(batch_no, last_point)
+            (min_y, max_y) = self.geometry_y_bounds(empty_space_polygon)
 
             current_room_linestring = self.get_linestring_of_current_room(batch_no)
 
@@ -641,3 +641,16 @@ class CustomGPT2(GPT2LMHeadModel):
         self.cached_remaining_empty_spaces[batch_no] = self.cached_remaining_empty_spaces[batch_no].difference(room)
 
         self.cached_room_in_generation[batch_no] = []
+
+
+    def _get_empty_space(self, batch_no, point: shapely.Point) -> shapely.Polygon:
+        empty_space_polygon = self.cached_remaining_empty_spaces[batch_no]
+
+        if empty_space_polygon.geom_type == "MultiPolygon":
+            for polygon in empty_space_polygon:
+                if polygon.contains(point):
+                    return polygon
+                
+            raise Exception("Point is outside empty space")
+        
+        return empty_space_polygon
