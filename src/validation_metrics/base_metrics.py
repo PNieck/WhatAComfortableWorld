@@ -5,8 +5,6 @@ from .geometry_validity import GeomValidityRate
 from .coverage import CoverageTest
 from .rooms_overlapping import RoomsOverlappingTest
 
-from src.floor_plan import FloorPlan
-
 
 class BaseMetrics:
     def __init__(self):
@@ -27,6 +25,14 @@ class BaseMetrics:
         floor_plans = self.overlapping.filter_out(floor_plans)
 
         self.correct_examples += len(floor_plans)
+
+    def filter_out(self, batch: List[str]):
+        floor_plans = self.parsability.parse(batch)
+        floor_plans = self.validity.filter_out_invalid(floor_plans)
+        floor_plans = self.coverage.filter_out(floor_plans)
+        floor_plans = self.overlapping.filter_out(floor_plans)
+
+        return floor_plans
 
     def success_rate(self):
         return self.correct_examples / self.examples_cnt
