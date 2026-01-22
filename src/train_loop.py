@@ -9,6 +9,7 @@ from transformers import DataCollatorForLanguageModeling
 
 from src.log_writer import LogWriter
 from src.losses import get_loss
+from src.losses.neighborhood_loss import NeighborhoodLoss
 from src.training_config import TrainingConfig
 from src.lr_schedulers import get_lr_scheduler
 from src.checkpoints import create_checkpoint, save_training_status, CheckpointReader
@@ -29,23 +30,31 @@ def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float
 
 
 
-def evaluate(model: nn.Module, test_loader: DataLoader) -> tuple[float, float]:
+def evaluate(model: nn.Module, test_loader: DataLoader, loss_fun, log_writer: LogWriter, step) -> tuple[float, float]:
     total_eval_loss = 0
     correct_preds = 0
     total_preds = 0
+
+    total_ergo_loss = 0
+    total_std_loss = 0
+    total_output_loss = 0
 
     model.eval()
     with torch.no_grad():
         for batch in test_loader:
             if model.device.type != "cpu":
                 batch = {k: v.to(model.device) for k, v in batch.items()}
-            
-            outputs = model(**batch)
 
-            total_eval_loss += outputs.loss.item()
+            outputs = model(**batch)
+            labels = outputs.labels
+
+            total_eval_loss += loss_fun(outputs, labels)
+            if isinstance(loss_fun, NeighborhoodLoss):
+                total_ergo_loss += loss_fun.ergonomic_loss_output(outputs, labels)
+                total_std_loss += loss_fun.std_loss(outputs, labels)
+                total_output_loss += outputs.loss.item()
 
             logits = outputs.logits
-            labels = batch["labels"]
 
             preds = torch.argmax(logits, dim=-1)
 
@@ -56,6 +65,15 @@ def evaluate(model: nn.Module, test_loader: DataLoader) -> tuple[float, float]:
             
     eval_avg_loss = total_eval_loss / len(test_loader)
     accuracy = correct_preds / total_preds
+
+    if isinstance(loss_fun, NeighborhoodLoss):
+        avg_ergo_loss = total_ergo_loss / len(test_loader)
+        avg_std_loss = total_std_loss / len(test_loader)
+        avg_output_loss = total_output_loss / len(test_loader)
+
+        log_writer.add_scalar("Eval avg ergo loss", avg_ergo_loss, step)
+        log_writer.add_scalar("Eval avg std loss", avg_std_loss, step)
+        log_writer.add_scalar("Eval avg output loss", avg_output_loss, step)
 
     return (eval_avg_loss, accuracy)
 
@@ -120,7 +138,7 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
                 train_avg_loss = train_loss / eval_steps
                 log_writer.add_scalar("Train avg loss", train_avg_loss, step)
 
-                eval_avg_loss, accuracy = evaluate(model, test_dataloader)
+                eval_avg_loss, accuracy = evaluate(model, test_dataloader, loss_fun, log_writer, step)
                 model.train()
 
                 log_writer.add_scalar("Eval avg loss", eval_avg_loss, step)
@@ -137,7 +155,7 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
 
         checkpointing(model, optimizer, lr_scheduler, config, epoch, step, log_writer)
 
-    eval_avg_loss, accuracy = evaluate(model, test_dataloader)
+    eval_avg_loss, accuracy = evaluate(model, test_dataloader, loss_fun, log_writer, step)
     log_writer.add_scalar("Eval avg loss", eval_avg_loss, step)
     log_writer.add_scalar("Eval accuracy", accuracy, step)
     save_training_status(config.log_dir, log_writer, epoch, step)

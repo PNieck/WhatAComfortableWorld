@@ -10,6 +10,7 @@ try:
 except ImportError:
     from yaml import Loader
 
+from src.floor_plan import FloorPlan
 from src.mat_file import from_mat_file 
 from src.sequence import to_sequence
 from src.dataset_loader import load_dataset_from_mat_file
@@ -20,24 +21,29 @@ def random_enum_vector(enum_class, size):
     return [random.choice(list(enum_class)) for _ in range(size)]
 
 
-def data_augmentation(plans, config):
-    new_plans = []
+def data_augmentation(plans, config, regularize: bool):
+    new_plans: list[FloorPlan] = []
     
     for technique in config:
         for k, v in technique.items():
             cnt = int(v["percentage"] * len(plans))
             samples = random.sample(plans, cnt)
 
-            if k == "permutation":
-                new_plans += [permutate(plan) for plan in samples]
+            match k:
+                case "permutation":
+                    new_plans += [permutate(plan) for plan in samples]
 
-            elif k == "symmetry":
-                sym_types = random_enum_vector(SymmetryType, len(samples))
-                new_plans += [symmetry(plan, type) for plan, type in zip(samples, sym_types)]
+                case "symmetry":
+                    sym_types = random_enum_vector(SymmetryType, len(samples))
+                    new_plans += [symmetry(plan, type) for plan, type in zip(samples, sym_types)]
 
-            elif k == "rotation":
-                rot_angles = random_enum_vector(RotationAngle, len(samples))
-                new_plans += [rotation(plan, angle) for plan, angle in zip(samples, rot_angles)]
+                case "rotation":
+                    rot_angles = random_enum_vector(RotationAngle, len(samples))
+                    new_plans += [rotation(plan, angle) for plan, angle in zip(samples, rot_angles)]
+
+    if regularize:
+        for plan in new_plans:
+            plan.regularize()
 
     plans = plans + new_plans
     random.shuffle(plans)
@@ -91,6 +97,11 @@ def main(argv):
     prep_config = config["preprocessing"]
     paths_config = config["paths"]
 
+    if "regularize" in prep_config and prep_config["regularize"] is True:
+        regularize = True
+    else:
+        regularize = False
+
     data = load_dataset_from_mat_file(args.path_to_dataset)
     print("Dataset loaded")
 
@@ -102,6 +113,10 @@ def main(argv):
 
     data = data[0:floor_plans_cnt]
     plans = [from_mat_file(plan) for plan in data]
+    
+    if regularize:
+        for plan in plans:
+            plan.regularize()
 
     floor_plans_cnt = len(plans)
 
@@ -116,7 +131,7 @@ def main(argv):
     validate_plans = plans[test_end_idx:floor_plans_cnt]
 
     if "data_augmentation" in prep_config:
-        train_plans = data_augmentation(train_plans, prep_config["data_augmentation"])
+        train_plans = data_augmentation(train_plans, prep_config["data_augmentation"], regularize)
 
     print("Preprocessing train dataset")
     save_sequences(paths_config["input_data"] + "/train.txt", train_plans)

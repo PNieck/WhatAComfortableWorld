@@ -3,7 +3,8 @@ from typing import List
 
 import numpy as np
 
-from shapely import Polygon, LineString
+from shapely import Polygon, LineString, LinearRing
+from shapely import orient_polygons
 
 
 _SCALE_FACTOR = 18/256
@@ -40,6 +41,18 @@ class Room:
 
     def polygon(self) -> Polygon:
         return Polygon(self.boundary * _SCALE_FACTOR)
+    
+    def regularize(self):
+        if np.all(self.boundary[0] == self.boundary[-1]):
+            self.boundary = self.boundary[:-1]
+            assert False
+        
+        ring = LinearRing(self.boundary)
+        if not ring.is_ccw:
+            self.boundary = self.boundary[::-1]
+
+        ring = LinearRing(self.boundary)
+        assert ring.is_ccw
     
     @classmethod
     def from_polygon(cls, polygon: Polygon, type: RoomType) -> 'Room':
@@ -92,7 +105,7 @@ class FrontDoor:
 
     @classmethod
     def from_xy(cls, x1: int, y1: int, x2: int, y2: int):
-        return cls(np.array([[x1, y1], [x2, y2]], np.uint8))
+        return cls(np.array([[x1, y1], [x2, y2]], np.int32))
 
 
 class FloorPlan:
@@ -127,11 +140,84 @@ class FloorPlan:
     def rooms_of_types(self, room_types: set[RoomType]) -> List[Room]:
         return [room for room in self.rooms if room.type in room_types]
     
+    def regularize(self):
+        if np.all(self.boundary[0] == self.boundary[-1]):
+            self.boundary = self.boundary[:-1]
+            assert False
+        
+        ring = LinearRing(self.boundary)
+        if not ring.is_ccw:
+            self.boundary = self.boundary[::-1]
+
+        ring = LinearRing(self.boundary)
+        assert ring.is_ccw
+
+        self._orient_door_to_wall()
+        self._rotate_corners_to_doors()
+
+        for room in self.rooms:
+            room.regularize()
+
+
+    def _boundary_walls(self):
+        return [
+            LineString([self.boundary[i], self.boundary[i+1]])
+            for i in range(-1, self.boundary.shape[0]-1)
+        ]
+
+
+    def _closes_wall_to_door(self):
+        walls = self._boundary_walls()
+        door_polygon = LineString(self.front_door.corners)
+
+        for wall in walls:
+            if wall.covers(door_polygon):
+                return np.array(wall.coords, np.int32)
+            
+        raise Exception("Front door are not covered by any wall")
+
+
+    def _orient_door_to_wall(self):
+        closes_wall = self._closes_wall_to_door()
+
+        # Direction vectors
+        v_wall = closes_wall[1] - closes_wall[0]
+        v_door = self.front_door.corner2 - self.front_door.corner1
+
+        if np.dot(v_wall, v_door) < 0:
+            self.front_door = FrontDoor(self.front_door.corners[::-1])
+
+        v_door = self.front_door.corner2 - self.front_door.corner1
+        assert np.dot(v_wall, v_door) > 0
+
+    def _rotate_corners_to_doors(self):
+        walls = self._boundary_walls()
+        door_polygon = LineString(self.front_door.corners)
+
+        i = 0
+        for wall in walls:
+            if wall.covers(door_polygon):
+                break
+
+            i+= 1
+
+        if i > 0:
+            self.boundary = np.roll(self.boundary, -i, axis=0)
+
+        walls = self._boundary_walls()
+
+        for wall in walls:
+            if wall.covers(door_polygon):
+                return
+            
+            assert False
+
+    
     @classmethod
     def from_polygon(cls, name: str, boundary: Polygon, front_door: FrontDoor, rooms: List[Room]) -> 'FloorPlan':
         boundary_array = np.array(boundary.exterior.coords) / _SCALE_FACTOR
         boundary_array = boundary_array[:-1]                  # Remove duplicated last point
 
-        boundary_array = boundary_array.astype(np.uint8)
+        boundary_array = boundary_array.astype(np.int32)
 
         return cls(name, boundary_array, front_door, rooms)

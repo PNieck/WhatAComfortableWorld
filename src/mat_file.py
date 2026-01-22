@@ -21,7 +21,7 @@ def _boundary_len(floor_plan):
 def _boundary_from_mat(floor_plan):
     len = _boundary_len(floor_plan)
     
-    result = np.empty((len, 2), dtype=np.uint8)
+    result = np.empty((len, 2), dtype=np.int32)
 
     start = 2
     end = floor_plan.boundary.shape[0]
@@ -55,12 +55,12 @@ def _rooms_from_mat(floor_plan) -> List[Room]:
     result = [None] * room_cnt
 
     for i, room in enumerate(floor_plan.rBoundary):
-        if room.dtype == np.uint8:
+        if room.dtype == np.int32:
             x = room[:, 0]
             y = room[:, 1]
         else:
-            x = room[:, 0].astype(np.uint8)
-            y = room[:, 1].astype(np.uint8)
+            x = room[:, 0].astype(np.int32)
+            y = room[:, 1].astype(np.int32)
 
         room_boundary = np.stack((x, y), axis=1)
         room_type = RoomType(floor_plan.rType[i])
