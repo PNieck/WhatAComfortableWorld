@@ -6,9 +6,19 @@ import numpy as np
 from src.floor_plan import FloorPlan, RoomType, Room
 
 pastel_colors = [
-    "#A6C8E0", "#F4B6A6", "#B8D8BA", "#F2C1C1", "#C6B7E2",
-    "#D3B8AE", "#F0CDE3", "#CFCFCF", "#D8E2A8", "#BFE4E8",
-    "#E1ECF7", "#FFE0B5", "#CFEBC7"
+    "#A6C8E0",
+    "#F4B6A6",
+    "#B8D8BA",
+    "#F2C1C1",
+    "#C6B7E2",
+    "#D3B8AE",
+    "#F0CDE3",
+    "#CFCFCF",
+    "#D8E2A8",
+    "#BFE4E8",
+    "#E1ECF7",
+    "#FFE0B5",
+    "#CFEBC7"
 ]
 
 _room2color = {
@@ -122,6 +132,31 @@ def draw_floor_plan_to_image(floor_plan: FloorPlan, filename: str, with_legend: 
         unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
         ax.legend(*zip(*unique))
 
-    plt.savefig(filename)
+    plt.savefig(filename, bbox_inches='tight')
 
     plt.close()
+
+
+def draw_legend_to_file(filename: str):
+    fig, ax = plt.subplots()
+
+    dummy_boundary = [
+        (0, 0),
+        (0, 1),
+        (1, 1), 
+        (1, 0)
+    ]
+
+    handles = []
+
+    for room in RoomType:
+        p = Polygon(dummy_boundary, facecolor=_room2color[room], label=room.name)
+
+        handles.append(p)
+
+    ax.legend(handles=handles, frameon=False, loc='center')
+    ax.axis('off')
+
+    fig.savefig(filename, bbox_inches='tight')
+    
+
