@@ -17,28 +17,38 @@ class ErgonomicsTest:
         self.nan_losses = 0
 
     def measure(self, floor_plans: List[FloorPlan]):
+        self.examples_cnt += len(floor_plans)
+
         for floor_plan in floor_plans:
             self.examples_cnt += 1
     
-            losses = np.empty(4)
-            rooms_cnt = np.empty(4)
+            loss = self.measure_single(floor_plan)
 
-            losses[0], rooms_cnt[0] = self._entrance_loss(floor_plan)
-            losses[1], rooms_cnt[1] = self._kitchens_loss(floor_plan)
-            losses[2], rooms_cnt[2] = self._bathrooms_loss(floor_plan)
-            losses[3], rooms_cnt[3] = self._balconies_loss(floor_plan)
-
-            finite_mask = np.isfinite(losses)
-
-            if not np.any(finite_mask):
+            if math.isnan(loss):
                 self.nan_losses += 1
                 continue
 
-            loss = np.sum(losses[finite_mask]) / np.sum(rooms_cnt)
             self.loss_sum += loss
 
             if loss == 0:
                 self.perfect_floor_plans += 1
+
+    def measure_single(self, floor_plan: FloorPlan) -> float:  
+        losses = np.empty(4)
+        rooms_cnt = np.empty(4)
+
+        losses[0], rooms_cnt[0] = self._entrance_loss(floor_plan)
+        losses[1], rooms_cnt[1] = self._kitchens_loss(floor_plan)
+        losses[2], rooms_cnt[2] = self._bathrooms_loss(floor_plan)
+        losses[3], rooms_cnt[3] = self._balconies_loss(floor_plan)
+
+        finite_mask = np.isfinite(losses)
+
+        if not np.any(finite_mask):
+            return math.nan
+
+        loss = np.sum(losses[finite_mask]) / np.sum(rooms_cnt)
+        return loss
 
 
     def correctness_rate(self) -> float:

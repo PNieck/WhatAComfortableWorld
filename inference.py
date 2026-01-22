@@ -1,9 +1,6 @@
 import argparse
-import yaml
-try:
-    from yaml import CLoader as Loader
-except ImportError:
-    from yaml import Loader
+import os
+import json
 
 import torch
 
@@ -14,7 +11,6 @@ from src.dataset_loader import load_floor_plans_dataset, Split
 from src.models import (
     print_model_size,
     get_pretrained_model,
-    preprocess_model_config
 )
 
 from src.validation_metrics import (
@@ -35,34 +31,66 @@ def main():
     p = argparse.ArgumentParser(description="Generate floor plans from trained model")
 
     p.add_argument(
-        "path_to_config",
+        "path_to_model",
         type=str,
-        help="Path to the configuration file"
+        help="Path to the saved model"
     )
+
+    p.add_argument(
+        "path_to_dataset",
+        type=str,
+        help="Path to preprocessed data from RPLAN dataset"
+    )
+
+    p.add_argument(
+        "--masked",
+        action="store_true",
+        help="Use masked inference. If provided, overrides 'use_masked_inference' from config."
+    )
+
+    p.add_argument(
+        "--draw_images",
+        action="store_true",
+        help="If specified, generated images are displayed on a screen"
+    )
+
+    p.add_argument(
+        "--save_imgs",
+        dest="save_imgs",
+        type=str,
+        help="Output directory for generated floor plan images"
+    )
+
+    p.add_argument(
+        "--save_output",
+        dest="save_output",
+        type=str,
+        help="Output directory metrics"
+    )
+
+    p.add_argument(
+        "--save_seq",
+        dest="save_seq",
+        type=str,
+        help="Output directory for generated sequences"
+    )
+
     args = p.parse_args()
 
-    with open(args.path_to_config, "r") as f:
-        config = yaml.load(f, Loader=Loader)
-
-    paths_config = config["paths"]
-    model_config = config["model"]
-    inference_config = config["inference"]
-
     tokenizer = FloorPlanTokenizer()
-    model_config = preprocess_model_config(model_config, tokenizer)
-    model = get_pretrained_model(model_config)
+    model = get_pretrained_model(args.path_to_model)
     print_model_size(model)
     print(model)
 
-    if "use_masked_inference" in inference_config:
-        model.use_masked_inference = inference_config["use_masked_inference"]
+    if args.masked:
+        model.use_masked_inference = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Using device: {device}')
     model.to(device)
     model.eval()
 
-    dataset = load_floor_plans_dataset(paths_config["input_data"], Split.VALID)
+    dataset = load_floor_plans_dataset(args.path_to_dataset, Split.VALID)
 
     pars_rate = ParsabilityRate()
     validity_rate = GeomValidityRate()
@@ -76,13 +104,31 @@ def main():
     ergonomics = ErgonomicsTest()
 
     # TODO: set bigger batch size
-    generator = Generator(model, tokenizer, dataset, 1)
+    batch = 32
+    if args.masked:
+        batch = 1
+
+    generator = Generator(model, tokenizer, dataset, batch)
 
     done = 0
     total = len(dataset["valid"])
 
+    if args.save_imgs is not None:
+        if not os.path.exists(args.save_imgs):
+            os.mkdir(args.save_imgs)
+
+    if args.save_seq is not None:
+        file = open(args.save_seq, "w")
+    else:
+        file = None
+
     i = 0
     for batch in generator.generate_in_batches():
+        if file is not None:
+            for seq in batch:
+                file.write(seq)
+                file.write("\n")
+
         floor_plans = pars_rate.parse(batch)
         floor_plans = validity_rate.filter_out_invalid(floor_plans)
         geom_simplicity.simplify(floor_plans)
@@ -94,12 +140,24 @@ def main():
         base_metrics.measure(batch)
         ergonomics.measure(floor_plans)
 
-        # for floor_plan in floor_plans:
-        #     draw_floor_plan_to_image(floor_plan, f"data/imgs/generated_masked/{i}.png")
-        #     i += 1
+        if args.save_imgs is not None:
+            for plan in floor_plans:
+                img_path = os.path.join(args.save_imgs, f"{i}.png")
+                draw_floor_plan_to_image(plan, img_path)
+                i += 1
+
+        if args.draw_images:
+            for plan in floor_plans:
+                draw_floor_plan(plan)
 
         done += len(batch)
         print(f"Done {done}/{total}")
+
+    if file is not None:
+        file.close()
+
+    print(f"Generations fails: {generator.fails}")
+    print(f"Validity problems {model.validity_problems}")
 
     print(f"Parsability: {pars_rate.rate()}")
     print(f"Examples {pars_rate.examples_cnt}")
@@ -146,6 +204,46 @@ def main():
     print(f"Perfect ergonomics floor plans: {ergonomics.perfect_floor_plans}/{ergonomics.examples_cnt} ({ergonomics.correctness_rate()}%)")
     if ergonomics.nan_losses > 0:
         print(f"Nan neighbor losses: {ergonomics.nan_losses}")
+
+    if args.save_output is not None:
+        output = {}
+
+        output["Generations fails"] = generator.fails
+        output["Validity generation problems"] = model.validity_problems
+
+        output["Parsability"] = {
+            "rate": pars_rate.rate(),
+            "examples": pars_rate.examples_cnt,
+            "failures": pars_rate.invalid_seq,
+            "error_types": pars_rate.error_types
+        }
+
+        output["Validity"] = {
+            "rate": validity_rate.rate(),
+            "valid examples": validity_rate.valid_examples
+        }
+
+        output["Simplicity rate"] = geom_simplicity.rate()
+
+        output["Coverage rate"] = cov_rate.correctness_rate()
+
+        output["Overlapping rate"] = room_overlap_rate.correctness_rate()
+
+        output["Base"] = base_metrics.success_rate()
+
+        output["Required rooms"] = required_rooms.correctness_rate()
+
+        output["Narrow spaces"] = narrow_spaces.correctness_rate()
+
+        output["Ergonomic loss"] = {
+            "avg loss": ergonomics.avg_loss(),
+            "rate": ergonomics.correctness_rate()
+        }
+
+        with open(args.save_output, 'w') as f:
+            json.dump(output, f, indent=4)
+
+
 
 if __name__ == "__main__":
     main()
