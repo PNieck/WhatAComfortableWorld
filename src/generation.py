@@ -71,6 +71,7 @@ class Generator:
                     )
                 except:
                     self.fails += 1
+                    continue
 
             generated_sequences = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
             
