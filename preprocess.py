@@ -26,7 +26,7 @@ def data_augmentation(plans, config, regularize: bool):
     
     for technique in config:
         for k, v in technique.items():
-            cnt = int(v["percentage"] * len(plans))
+            cnt = int(v["percentage"]) * len(plans)
             samples = random.sample(plans, cnt)
 
             match k:
@@ -52,9 +52,11 @@ def data_augmentation(plans, config, regularize: bool):
 
 
 
-def save_sequences(file: str, plans):
-    os.makedirs(os.path.dirname(file), exist_ok=True)
-    with open(file, mode='w+') as file:
+def save_sequences(filename: str, plans: list[FloorPlan]):
+    """Converts floor plans to sequences and saves in a file"""
+
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, mode='w+') as file:
         for i, floor_plan in enumerate(plans):
 
             seq = to_sequence(floor_plan)
@@ -95,15 +97,18 @@ def main(argv):
         config = yaml.load(f, Loader=Loader)
 
     prep_config = config["preprocessing"]
-    paths_config = config["paths"]
 
+    regularize = False
     if "regularize" in prep_config and prep_config["regularize"] is True:
         regularize = True
-    else:
-        regularize = False
 
     data = load_dataset_from_mat_file(args.path_to_dataset)
     print("Dataset loaded")
+
+    if "general" in config and "seed" in config["general"]:
+        rnd_seed = int(config["general"]["seed"])
+        np.random.seed(rnd_seed)
+        random.seed(rnd_seed)
 
     np.random.shuffle(data)
 
@@ -134,13 +139,13 @@ def main(argv):
         train_plans = data_augmentation(train_plans, prep_config["data_augmentation"], regularize)
 
     print("Preprocessing train dataset")
-    save_sequences(paths_config["input_data"] + "/train.txt", train_plans)
+    save_sequences(prep_config["output"] + "/train.txt", train_plans)
 
     print("Preprocessing test dataset")
-    save_sequences(paths_config["input_data"] + "/test.txt", test_plans)
+    save_sequences(prep_config["output"] + "/test.txt", test_plans)
 
     print("Preprocessing validation dataset")
-    save_sequences(paths_config["input_data"] + "/validation.txt", validate_plans)
+    save_sequences(prep_config["output"] + "/validation.txt", validate_plans)
 
 
 if __name__ == "__main__":

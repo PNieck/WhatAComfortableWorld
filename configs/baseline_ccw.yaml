@@ -1,21 +1,6 @@
 general:
   seed: 42
 
-paths:
-  input_data: "./data/gpt2_main_ccw/input/"
-
-preprocessing:
-  test_size: 0.05
-  validate_size: 0.05
-  regularize: True
-  data_augmentation:
-    - permutation:
-        percentage: 0.4
-    - symmetry:
-        percentage: 0.4
-    - rotation:
-        percentage: 0.4
-
 model:
   with_corner_indices: True
   with_xy_indices: True

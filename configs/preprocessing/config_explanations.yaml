@@ -1,0 +1,16 @@
+general:
+  seed: 42  # Seed for random operations. Ensures reproducibility across runs
+
+preprocessing:
+  max_floor_plans: 1000 # Optional argument. Limits the number of floor plans to process. Handy for quick tests. If not specified all floor plans are used.
+  test_size: 0.1        # Percentage of data to reserve for testing.
+  validate_size: 0.1          # Percentage of data to reserve for validation.
+  regularize: False           # Optional argument. If True, applies regularization techniques during preprocessing. If not specified, no regularization is applied.
+  output: "./data/fast_test"  # Directory to save the preprocessed data.
+  data_augmentation:          # Optional argument. List of data augmentation techniques to apply during preprocessing. If not specified no data augmentation is performed
+    - permutation:
+        percentage: 0.4       # Percentage of data to augment using permutation technique.
+    - symmetry:
+        percentage: 0.4
+    - rotation:
+        percentage: 0.4

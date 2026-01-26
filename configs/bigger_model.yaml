@@ -1,17 +1,6 @@
 general:
   seed: 42
 
-preprocessing:
-  test_size: 0.05
-  validate_size: 0.005
-  data_augmentation:
-    - permutation:
-        percentage: 0.4
-    - symmetry:
-        percentage: 0.4
-    - rotation:
-        percentage: 0.4
-
 model:
   with_xy_indices: True
   with_corner_indices: True

@@ -1,20 +1,6 @@
 general:
   seed: 42
 
-paths:
-  input_data: "./data/gpt2_main/input/"
-
-preprocessing:
-  test_size: 0.05
-  validate_size: 0.05
-  data_augmentation:
-    - permutation:
-        percentage: 0.4
-    - symmetry:
-        percentage: 0.4
-    - rotation:
-        percentage: 0.4
-
 model:
   name: "gpt2_main_model"
   type: "gpt2"
