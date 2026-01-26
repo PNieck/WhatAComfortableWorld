@@ -46,7 +46,7 @@ def evaluate(model: nn.Module, test_loader: DataLoader, loss_fun, log_writer: Lo
                 batch = {k: v.to(model.device) for k, v in batch.items()}
 
             outputs = model(**batch)
-            labels = outputs.labels
+            labels = batch["labels"]
 
             total_eval_loss += loss_fun(outputs, labels)
             if isinstance(loss_fun, NeighborhoodLoss):
