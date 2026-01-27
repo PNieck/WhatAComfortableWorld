@@ -4,9 +4,6 @@ import os
 import json
 
 
-
-
-
 class LogWriter:
     def __init__(self, log_dir: str):       
         self.start_epoch = 0

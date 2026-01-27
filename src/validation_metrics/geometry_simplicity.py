@@ -1,7 +1,7 @@
 from typing import List
 
 from src.floor_plan import FloorPlan, Room
-from src.polygons_utils import remove_collinear_points_ring
+from src.geom_utils import remove_collinear_points_ring
 
 import shapely
 from shapely import remove_repeated_points

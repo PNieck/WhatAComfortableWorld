@@ -95,39 +95,39 @@ class FloorPlanTokenizer(PreTrainedTokenizer):
             # If you ever add sentence-pair mode
             return [0] * (len(token_ids_0) + 2) + [1] * (len(token_ids_1) + 1)
     
-    @singledispatchmethod
-    def is_coord_token(self, token):
-        raise TypeError(f"Invalid type: {type(token)}")
+    # @singledispatchmethod
+    # def is_coord_token(self, token):
+    #     raise TypeError(f"Invalid type: {type(token)}")
         
-    @is_coord_token.register
-    def _(self, token: torch.Tensor) -> torch.Tensor:
-        min_coord_token = tokens.coord_token_id(0)
-        max_coord_token = tokens.coord_token_id(self.resolution)
+    # @is_coord_token.register
+    # def _(self, token: torch.Tensor) -> torch.Tensor:
+    #     min_coord_token = tokens.coord_token_id(0)
+    #     max_coord_token = tokens.coord_token_id(self.resolution)
 
-        return (token >= min_coord_token) & (token <= max_coord_token)
+    #     return (token >= min_coord_token) & (token <= max_coord_token)
     
-    @is_coord_token.register
-    def _(self, token: list):
-        return [self.is_coord_token(val) for val in token]
+    # @is_coord_token.register
+    # def _(self, token: list):
+    #     return [self.is_coord_token(val) for val in token]
     
-    @is_coord_token.register
-    def _(self, token: int) -> bool:
-        min_coord_token = tokens.coord_token_id(0)
-        max_coord_token = tokens.coord_token_id(self.resolution)
+    # @is_coord_token.register
+    # def _(self, token: int) -> bool:
+    #     min_coord_token = tokens.coord_token_id(0)
+    #     max_coord_token = tokens.coord_token_id(self.resolution)
 
-        return token >= min_coord_token and token <= max_coord_token
+    #     return token >= min_coord_token and token <= max_coord_token
     
-    def prompt_mask(self, sequence: torch.Tensor):
-        door_token_mask = (sequence == tokens.DOOR_TOKEN_ID)
-        door_indices = door_token_mask.int().argmax(dim=1)
+    # def prompt_mask(self, sequence: torch.Tensor):
+    #     door_token_mask = (sequence == tokens.DOOR_TOKEN_ID)
+    #     door_indices = door_token_mask.int().argmax(dim=1)
 
-        prompt_end_indices = door_indices + 4
+    #     prompt_end_indices = door_indices + 4
 
-        cols = sequence.shape[1]
-        col_idx = torch.arange(cols, device=sequence.device).unsqueeze(0)
+    #     cols = sequence.shape[1]
+    #     col_idx = torch.arange(cols, device=sequence.device).unsqueeze(0)
 
-        prompt_end_indices = prompt_end_indices.unsqueeze(1)
+    #     prompt_end_indices = prompt_end_indices.unsqueeze(1)
 
-        mask = (col_idx <= prompt_end_indices).bool()
+    #     mask = (col_idx <= prompt_end_indices).bool()
 
-        return mask
+    #     return mask

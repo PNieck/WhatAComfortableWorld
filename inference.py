@@ -1,6 +1,7 @@
 import argparse
 import os
 import json
+import sys
 
 import torch
 
@@ -21,13 +22,12 @@ from src.validation_metrics import (
     RequiredRoomsTest,
     NarrowSpacesTest,
     GeometrySimplicityTest,
-    RoomsNeighborhoodTest,
     BaseMetrics,
     ErgonomicsTest
 )
 
 
-def main():
+def parse_args(argv):
     p = argparse.ArgumentParser(description="Generate floor plans from trained model")
 
     p.add_argument(
@@ -75,7 +75,11 @@ def main():
         help="Output directory for generated sequences"
     )
 
-    args = p.parse_args()
+    return p.parse_args(argv)
+
+
+def main(argv):
+    args = parse_args(argv)
 
     tokenizer = FloorPlanTokenizer()
     model = get_pretrained_model(args.path_to_model)
@@ -90,7 +94,7 @@ def main():
     model.to(device)
     model.eval()
 
-    dataset = load_floor_plans_dataset(args.path_to_dataset, Split.VALID)
+    dataset = load_floor_plans_dataset(args.path_to_dataset, Split.TEST)
 
     pars_rate = ParsabilityRate()
     validity_rate = GeomValidityRate()
@@ -99,11 +103,9 @@ def main():
     room_overlap_rate = RoomsOverlappingTest()
     required_rooms = RequiredRoomsTest()
     narrow_spaces = NarrowSpacesTest()
-    neighborhood = RoomsNeighborhoodTest()
     base_metrics = BaseMetrics()
     ergonomics = ErgonomicsTest()
 
-    # TODO: set bigger batch size
     batch = 32
     if args.masked:
         batch = 1
@@ -111,7 +113,7 @@ def main():
     generator = Generator(model, tokenizer, dataset, batch)
 
     done = 0
-    total = len(dataset["valid"])
+    total = len(dataset["test"])
 
     if args.save_imgs is not None:
         if not os.path.exists(args.save_imgs):
@@ -136,7 +138,6 @@ def main():
         room_overlap_rate.measure(floor_plans)
         required_rooms.measure(floor_plans)
         narrow_spaces.measure(floor_plans)
-        neighborhood.measure(floor_plans)
         base_metrics.measure(batch)
         ergonomics.measure(floor_plans)
 
@@ -194,12 +195,6 @@ def main():
     print(f"Floor plans with no narrow spaces: {narrow_spaces.correct_cnt}/{narrow_spaces.examples_cnt} ({narrow_spaces.correctness_rate()}%)")
 
     print("\n")
-    print(f"Avg neighborhood loss: {neighborhood.avg_loss()}")
-    print(f"Perfect neighborhood floor plans: {neighborhood.perfect_floor_plans}/{neighborhood.examples_cnt} ({neighborhood.correctness_rate()}%)")
-    if neighborhood.nan_losses > 0:
-        print(f"Nan neighbor losses: {neighborhood.nan_losses}")
-
-    print("\n")
     print(f"Avg ergonomics loss: {ergonomics.avg_loss()}")
     print(f"Perfect ergonomics floor plans: {ergonomics.perfect_floor_plans}/{ergonomics.examples_cnt} ({ergonomics.correctness_rate()}%)")
     if ergonomics.nan_losses > 0:
@@ -246,4 +241,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

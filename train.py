@@ -1,6 +1,9 @@
 from __future__ import annotations
 import argparse
 import os
+import sys
+import random
+import torch
 
 from transformers import (
     PreTrainedTokenizer,
@@ -15,7 +18,7 @@ from src.models import (
 from src.train_loop import training_loop
 from src.dataset_loader import load_floor_plans_dataset, Split
 from src.floor_plan_tokenizer import FloorPlanTokenizer
-from src.validation import validate
+from src.testing import test
 from src.log_writer import LogWriter
 from src.training_config import TrainingConfig
 from src.checkpoints import CheckpointReader
@@ -28,12 +31,12 @@ def tokenize_function(examples, tokenizer: PreTrainedTokenizer, seq_len: int):
         truncation=True,
         max_length=seq_len,
     )
-    
 
-def main():
-    p = argparse.ArgumentParser(description="Train model from scratch")
 
-    group = p.add_mutually_exclusive_group(required=True)
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description="Train model from scratch")
+
+    group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
         "--config",
         dest="config",
@@ -48,7 +51,7 @@ def main():
         help="Path to a checkpoint directory (e.g. runs/.../checkpoints/epoch_3)"
     )
 
-    p.add_argument(
+    parser.add_argument(
         "--epoch",
         dest="epoch",
         type=int,
@@ -56,39 +59,47 @@ def main():
         help="Checkpoint epoch to resume from (overrides epoch detected from directory). Only valid with --from_checkpoint."
     )
 
-    args = p.parse_args()
+    return parser.parse_args(argv)
+    
+
+def main(argv):
+    args = parse_args(argv)
 
     tokenizer = FloorPlanTokenizer()
 
     if args.config is not None:
+        # Starting from scratch
+
         config = TrainingConfig(args.config)
         config.update_with_tokenizer(tokenizer)
         model = get_model(config)
         log_writer = LogWriter(config.log_dir)
 
     else:
-        ch = CheckpointReader(args.from_checkpoint, args.epoch)
+        # Starting from checkpoint
+        ch_reader = CheckpointReader(args.from_checkpoint, args.epoch)
         
         config = TrainingConfig()
         config.update_with_tokenizer(tokenizer)
-        ch.load_training_config(config)
+        ch_reader.load_training_config(config)
         config.checkpoint_path = args.from_checkpoint
-        config.checkpoint_epoch = ch.epoch
+        config.checkpoint_epoch = ch_reader.epoch
 
         log_writer = LogWriter(config.log_dir)
-        ch.load_log_writer(log_writer)
+        ch_reader.load_log_writer(log_writer)
 
-        model = ch.load_model()
+        model = ch_reader.load_model()
 
     if config.seed is not None:
         set_seed(config.seed)
+        torch.manual_seed(config.seed)
+        random.seed(config.seed)
     
     print_model_size(model)
     print(model)
 
-    # Load dataset
     print("Loading datasets")
-    dataset = load_floor_plans_dataset(config.input_data_path, Split.TEST | Split.TRAIN)
+    dataset = load_floor_plans_dataset(config.input_data_path, Split.VALID | Split.TRAIN)
 
     # Tokenize
     tokenized_dataset = dataset.map(
@@ -105,12 +116,12 @@ def main():
     model_dir = os.path.join(config.log_dir, "model")
     model.save_pretrained(model_dir)
 
-    print("Validating model…")
-    dataset = load_floor_plans_dataset(config.input_data_path, Split.VALID)
-    validate(model, tokenizer, dataset, config, log_writer)
+    print("Testing model…")
+    dataset = load_floor_plans_dataset(config.input_data_path, Split.TEST)
+    test(model, tokenizer, dataset, config, log_writer)
 
     print(f"\nAll done.")
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

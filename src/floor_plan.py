@@ -4,7 +4,6 @@ from typing import List
 import numpy as np
 
 from shapely import Polygon, LineString, LinearRing
-from shapely import orient_polygons
 
 
 _SCALE_FACTOR = 18/256

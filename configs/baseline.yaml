@@ -2,8 +2,6 @@ general:
   seed: 42
 
 model:
-  name: "gpt2_main_model"
-  type: "gpt2"
   with_corner_indices: True
   with_xy_indices: True
   max_seq_len: 320
@@ -12,14 +10,14 @@ model:
   n_embd: 256   # embedding and hidden states dimension
 
 training:
-  input_data: "./data/gpt2_main/input/"
+  input_data: "./data/main/"
   epochs: 150
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
-  log_comment: "_main_gpt2_25_layers_cyclic_corners"
+  log_comment: "_baseline"
   checkpointing_frequency: 10  # checkpoint every n epochs
-  loss: "SegmentDistLoss"
+  loss: "CrossEntropyLoss"
   lr_scheduler:
     type: "cyclic"
     base_lr: 1e-12

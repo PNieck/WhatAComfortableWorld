@@ -16,14 +16,14 @@ class StdLoss:
             batch_logits = logits[i,:,:]
             batch_labels = labels[i,:]
 
-            std_loss = self.cc_loss(batch_logits.unsqueeze(0), batch_labels.unsqueeze(0))
+            std_loss = self.cross_entropy_loss(batch_logits.unsqueeze(0), batch_labels.unsqueeze(0))
 
             loss_sum += std_loss
 
-        return loss_sum
+        return loss_sum.squeeze()
 
 
-    def cc_loss(self, logits: torch.Tensor, labels: torch.Tensor):
+    def cross_entropy_loss(self, logits: torch.Tensor, labels: torch.Tensor):
         shift_logits = logits[:, :-1, :].contiguous()
         shift_labels = labels[:, 1:].contiguous()
 

@@ -20,8 +20,6 @@ class ErgonomicsTest:
         self.examples_cnt += len(floor_plans)
 
         for floor_plan in floor_plans:
-            self.examples_cnt += 1
-    
             loss = self.measure_single(floor_plan)
 
             if math.isnan(loss):

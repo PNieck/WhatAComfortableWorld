@@ -14,7 +14,7 @@ from src.validation_metrics import (
 )
 
 
-def validate(
+def test(
         model: PreTrainedModel,
         tokenizer, dataset: DatasetDict,
         config: TrainingConfig,

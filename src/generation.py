@@ -36,7 +36,7 @@ class Generator:
             batched=False,
         )
 
-        data_loader = DataLoader(prompts["valid"]["text"], batch_size=self.batch_size)
+        data_loader = DataLoader(prompts["test"]["text"], batch_size=self.batch_size)
 
         for batch in data_loader:
             inputs = self.tokenizer(

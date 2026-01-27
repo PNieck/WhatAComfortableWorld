@@ -60,11 +60,15 @@ def load_imperfect_floor_plans_names() -> set[str]:
     return _load_floor_plan_names(IMPERFECT_FLOOR_PLANS_FILE)
 
 
-def load_dataset_from_mat_file(path: str, exclude_invalid=True):
+def load_dataset_from_mat_file(path: str, exclude_invalid=True, exclude_imperfect=False):
     data = sio.loadmat(path, squeeze_me=True, struct_as_record=False)['data']
 
     if exclude_invalid:
         invalid_plans = _load_invalid()
         data = [plan for plan in data if not plan.name in invalid_plans]
+    
+    if exclude_imperfect:
+        imperfect_plans = load_imperfect_floor_plans_names()
+        data = [plan for plan in data if not plan.name in imperfect_plans]
 
     return data

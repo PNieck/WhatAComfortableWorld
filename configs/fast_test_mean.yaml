@@ -16,8 +16,8 @@ training:
   batch_size: 32
   eval_steps: 2
   checkpointing_frequency: 3  # checkpoint every n epochs
-  log_comment: "_fast_test"
-  loss: "CrossEntropyLoss"
+  log_comment: "_fast_test_mean"
+  loss: "MeanValuesLoss"
   lr_scheduler:
     type: "cyclic"
     base_lr: 1e-8

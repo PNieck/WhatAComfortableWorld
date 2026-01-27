@@ -15,9 +15,9 @@ training:
   lr: 1e-5
   batch_size: 32
   eval_steps: 500
-  log_comment: "_baseline_ccw"
+  log_comment: "_our_ccw"
   checkpointing_frequency: 10  # checkpoint every n epochs
-  loss: "CrossEntropyLoss"
+  loss: "NeighborhoodLoss"
   lr_scheduler:
     type: "cyclic"
     base_lr: 1e-12

@@ -30,7 +30,7 @@ def calc_correct_preds(preds: torch.Tensor, labels: torch.Tensor) -> tuple[float
 
 
 
-def evaluate(model: nn.Module, test_loader: DataLoader, loss_fun, log_writer: LogWriter, step) -> tuple[float, float]:
+def validate(model: nn.Module, valid_loader: DataLoader, loss_fun, log_writer: LogWriter, step) -> tuple[float, float]:
     total_eval_loss = 0
     correct_preds = 0
     total_preds = 0
@@ -41,7 +41,7 @@ def evaluate(model: nn.Module, test_loader: DataLoader, loss_fun, log_writer: Lo
 
     model.eval()
     with torch.no_grad():
-        for batch in test_loader:
+        for batch in valid_loader:
             if model.device.type != "cpu":
                 batch = {k: v.to(model.device) for k, v in batch.items()}
 
@@ -63,17 +63,17 @@ def evaluate(model: nn.Module, test_loader: DataLoader, loss_fun, log_writer: Lo
             correct_preds += correct
             total_preds += preds
             
-    eval_avg_loss = total_eval_loss / len(test_loader)
+    eval_avg_loss = total_eval_loss / len(valid_loader)
     accuracy = correct_preds / total_preds
 
     if isinstance(loss_fun, NeighborhoodLoss):
-        avg_ergo_loss = total_ergo_loss / len(test_loader)
-        avg_std_loss = total_std_loss / len(test_loader)
-        avg_output_loss = total_output_loss / len(test_loader)
+        avg_ergo_loss = total_ergo_loss / len(valid_loader)
+        avg_std_loss = total_std_loss / len(valid_loader)
+        avg_output_loss = total_output_loss / len(valid_loader)
 
-        log_writer.add_scalar("Eval avg ergo loss", avg_ergo_loss, step)
-        log_writer.add_scalar("Eval avg std loss", avg_std_loss, step)
-        log_writer.add_scalar("Eval avg output loss", avg_output_loss, step)
+        log_writer.add_scalar("Valid avg ergo loss", avg_ergo_loss, step)
+        log_writer.add_scalar("Valid avg std loss", avg_std_loss, step)
+        log_writer.add_scalar("Valid avg output loss", avg_output_loss, step)
 
     return (eval_avg_loss, accuracy)
 
@@ -89,14 +89,14 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     train_dataloader = DataLoader(dataset["train"], batch_size=config.batch_size, collate_fn=data_collator)
-    test_dataloader = DataLoader(dataset["test"], batch_size=config.batch_size, collate_fn=data_collator)
+    valid_dataloader = DataLoader(dataset["valid"], batch_size=config.batch_size, collate_fn=data_collator)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
     model.to(device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=0.01)
-    loss_fun = get_loss(config, tokenizer, train_dataloader, device)
+    loss_fun = get_loss(config)
     num_epochs = config.epochs_cnt
     num_training_steps = num_epochs * len(train_dataloader)
     lr_scheduler = get_lr_scheduler(config, optimizer, num_training_steps)
@@ -105,12 +105,12 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
     progress_bar = tqdm(range(num_training_steps))
 
     if config.use_checkpoint:
+        # Loading previous states if starting from checkpoint
         ch = CheckpointReader(config.checkpoint_path, config.checkpoint_epoch)
         ch.load_optimizer(optimizer, device)
         ch.load_lr_scheduler(lr_scheduler, device)
         progress_bar.update(config.checkpoint_epoch * len(train_dataloader))
     
-
     train_loss = 0
 
     step = 0
@@ -121,7 +121,7 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
             if device.type != "cpu":
                 batch = {k: v.to(device) for k, v in batch.items()}
 
-            labels = batch.pop('labels') # Remove labels since we want to compute the loss manually
+            labels = batch.pop('labels') # Removing labels since we want to compute the loss manually
 
             optimizer.zero_grad()
 
@@ -138,15 +138,15 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
                 train_avg_loss = train_loss / eval_steps
                 log_writer.add_scalar("Train avg loss", train_avg_loss, step)
 
-                eval_avg_loss, accuracy = evaluate(model, test_dataloader, loss_fun, log_writer, step)
+                eval_avg_loss, accuracy = validate(model, valid_dataloader, loss_fun, log_writer, step)
                 model.train()
 
-                log_writer.add_scalar("Eval avg loss", eval_avg_loss, step)
-                log_writer.add_scalar("Eval accuracy", accuracy, step)
+                log_writer.add_scalar("Valid avg loss", eval_avg_loss, step)
+                log_writer.add_scalar("Valid accuracy", accuracy, step)
                 log_writer.add_scalar("lr", lr_scheduler.get_last_lr()[0], step)
 
                 print(f"Epoch: {epoch}/{num_epochs}, step: {step + log_writer.start_step}/{num_training_steps}")
-                print(f"\tAvg train loss: {train_avg_loss:.5f}, Avg eval loss: {eval_avg_loss:.5f}, eval_accuracy: {accuracy:.5f}")
+                print(f"\tAvg train loss: {train_avg_loss:.5f}, Avg valid loss: {eval_avg_loss:.5f}, valid_accuracy: {accuracy:.5f}")
 
             progress_bar.update(1)
             step += 1
@@ -155,7 +155,7 @@ def training_loop(model: nn.Module, tokenizer, dataset, config: TrainingConfig, 
 
         checkpointing(model, optimizer, lr_scheduler, config, epoch, step, log_writer)
 
-    eval_avg_loss, accuracy = evaluate(model, test_dataloader, loss_fun, log_writer, step)
-    log_writer.add_scalar("Eval avg loss", eval_avg_loss, step)
-    log_writer.add_scalar("Eval accuracy", accuracy, step)
+    eval_avg_loss, accuracy = validate(model, valid_dataloader, loss_fun, log_writer, step)
+    log_writer.add_scalar("Valid avg loss", eval_avg_loss, step)
+    log_writer.add_scalar("Valid accuracy", accuracy, step)
     save_training_status(config.log_dir, log_writer, epoch, step)

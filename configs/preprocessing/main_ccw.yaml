@@ -4,7 +4,8 @@ general:
 preprocessing:
   test_size: 0.05
   validate_size: 0.05
-  output: "./data/main/"
+  regularize: True
+  output: "./data/main_ccw/"
   data_augmentation:
     - permutation:
         percentage: 0.4
