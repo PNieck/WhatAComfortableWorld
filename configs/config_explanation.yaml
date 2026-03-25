@@ -1,0 +1,33 @@
+general:
+  seed: 42  # Random seed for reproducibility
+
+model:
+  with_vertex_indices: True # Whether to include vertex indices in the model. Optional argument, default value: False
+  with_xy_indices: True     # Whether to include x and y coordinate indices in the model. Optional argument, default value: False
+  max_seq_len: 320          # Maximum sequence length the model can handle
+  n_layer: 25               # Number of transformer layers
+  n_head: 16                # Number of attention heads in each transformer layer
+  n_embd: 256               # Embedding and hidden states dimension
+
+  input_model_path: "runs/runs/2026-01-10-05:36:54_baseline"  # If specified training starts from specified pretrained model and all model params are ignored.
+
+training:
+  input_data: "./data/main_ccw/"  # Path to the input data directory
+  epochs: 150                     # Number of training epochs
+  lr: 1e-5                        # Learning rate for the optimizer
+  batch_size: 32                  # Batch size for training
+  eval_steps: 500                 # Number of steps between evaluations
+  log_comment: "_baseline_ccw"    # Comment to append to log files for identification
+  checkpointing_frequency: 10     # Checkpoint every n epochs
+  loss: "CrossEntropyLoss"        # Loss function to use during training.
+    # Options: "CrossEntropyLoss", "VertexDistancesErgoLoss", "MeanValuesLoss", "SegmentDistLoss".
+    # Refer to loss class documentation for more details
+
+  
+
+  ignore_prompt_in_loss: False    # Whether to ignore prompt tokens in loss calculation
+  lr_scheduler:                   # Learning rate scheduler configuration
+    type: "cyclic"                # Type of learning rate scheduler. Supported: "cyclic", "linear"
+    base_lr: 1e-12                # Base learning rate for the scheduler. Used only for "cyclic" type
+    max_lr: 1e-5                  # Maximum learning rate for the scheduler. Used only for "cyclic" type
+    cycles: 3                     # Number of cycles for the cyclic learning rate scheduler

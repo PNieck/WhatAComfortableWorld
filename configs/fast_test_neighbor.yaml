@@ -1,0 +1,25 @@
+general:
+  seed: 42
+
+model:
+  with_xy_indices: True
+  with_vertex_indices: False
+  max_seq_len: 320
+  n_layer: 3
+  n_head: 2
+  n_embd: 64
+
+training:
+  input_data: "./data/fast_test/"
+  epochs: 10
+  lr: 1e-4
+  batch_size: 32
+  eval_steps: 2
+  checkpointing_frequency: 3  # checkpoint every n epochs
+  log_comment: "_fast_test_neighbor"
+  loss: "VertexDistancesErgoLoss"
+  lr_scheduler:
+    type: "cyclic"
+    base_lr: 1e-8
+    max_lr: 1e-4
+    cycles: 3

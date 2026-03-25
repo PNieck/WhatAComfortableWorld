@@ -1,0 +1,35 @@
+/models/
+!*/models/
+
+# Datasets
+data/*
+# Exceptions
+!data/invalid_floor_plans.txt
+!data/imperfect_floor_plans.txt
+
+# Python artifacts
+__pycache__/
+
+# Code editors artifacts
+.vscode/
+
+# venv directory
+venv/
+
+# File with slurm job_id
+job_id
+
+# Temporary folder
+tmp/
+
+# Log files
+*.log
+trainer_output/
+
+# Tensorboard logs
+runs/
+legacy_runs/
+
+imgs/
+
+results/

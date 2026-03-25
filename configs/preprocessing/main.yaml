@@ -1,0 +1,14 @@
+general:
+  seed: 42
+
+preprocessing:
+  test_size: 0.05
+  validate_size: 0.05
+  output: "./data/main/"
+  data_augmentation:
+    - permutation:
+        percentage: 0.4
+    - symmetry:
+        percentage: 0.4
+    - rotation:
+        percentage: 0.4
