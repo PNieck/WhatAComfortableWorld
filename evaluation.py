@@ -49,7 +49,7 @@ def parse_args(argv):
     )
 
     p.add_argument(
-        "--draw_images",
+        "--draw_imgs",
         action="store_true",
         help="If specified, generated images are displayed on a screen"
     )
@@ -147,7 +147,7 @@ def main(argv):
                 draw_floor_plan_to_image(plan, img_path)
                 i += 1
 
-        if args.draw_images:
+        if args.draw_imgs:
             for plan in floor_plans:
                 draw_floor_plan(plan)
 
