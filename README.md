@@ -17,7 +17,7 @@ Current data-driven floor plan generation methods often reproduce the ergonomic 
 - `src/` — source code
 - `configs/` — YAML configuration files for dataset preprocessing and model training
 - `data/` — input data for training and testing
-- `preprocess.py`, `train.py`, `evaluation.py` — main entry points
+- `preprocess.py`, `train.py`, `evaluation.py`, `synthesis.py` — main entry points
 
 ## Requirements
 - Linux is recommended operating system. Not tested on Windows or MacOS.
@@ -88,6 +88,18 @@ python evaluation.py <path to model> <path to preprocessed dataset folder>
 For additional options like saving created floor plans or enabling masked inference refer to:
 ```bash
 python evaluation.py --help
+```
+
+### Synthesis
+
+The following script allows you to synthesize 10 new floor plans from scratch:
+```bash
+python synthesis.py runs/sota/model 10 --draw_imgs
+```
+
+For additional options, such as saving the generated floor plans, see:
+```bash
+python synthesis.py --help
 ```
 
 ## Results form paper
