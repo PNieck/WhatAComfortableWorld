@@ -94,7 +94,7 @@ python evaluation.py --help
 
 The following script allows you to synthesize 10 new floor plans from scratch:
 ```bash
-python synthesis.py runs/sota/model 10 --draw_imgs
+python synthesis.py <path to model> 10 --draw_imgs
 ```
 
 For additional options, such as saving the generated floor plans, see:
