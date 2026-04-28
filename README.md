@@ -104,7 +104,7 @@ python synthesis.py --help
 
 ## Results form paper
 
-To reproduce results from paper What a Comfortable World: Ergonomic Principles Guided Apartment Layout Generation run these commands from project root directory:
+To reproduce results from paper [What a Comfortable World: Ergonomic Principles Guided Apartment Layout Generation](https://comfortableworld.github.io/) run these commands from project root directory:
 
 ```bash
 python preprocess.py configs/preprocessing/paper.yaml <path to .mat file with dataset>
